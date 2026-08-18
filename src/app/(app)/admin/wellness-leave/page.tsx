@@ -83,7 +83,12 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
                     </TableCell>
                     <TableCell>{request.daysCount}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{request.notes ?? ""}</TableCell>
-                    <TableCell>
+                    <TableCell className="flex justify-end gap-2">
+                      <Link href={`/wellness-leave/${request.id}/print`}>
+                        <Button type="button" variant="outline" size="sm">
+                          Print
+                        </Button>
+                      </Link>
                       <ApproveRejectButtons id={request.id} />
                     </TableCell>
                   </TableRow>
@@ -148,6 +153,7 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
                   <TableHead>Semester</TableHead>
                   <TableHead>Days</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -165,6 +171,13 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
                       <Badge variant={request.status === "APPROVED" ? "default" : "secondary"}>
                         {request.status}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Link href={`/wellness-leave/${request.id}/print`}>
+                        <Button type="button" variant="outline" size="sm">
+                          Print
+                        </Button>
+                      </Link>
                     </TableCell>
                   </TableRow>
                 ))}

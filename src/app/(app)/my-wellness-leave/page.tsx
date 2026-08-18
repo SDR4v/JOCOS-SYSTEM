@@ -79,12 +79,13 @@ export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/
               <TableHead>Days</TableHead>
               <TableHead>Notes</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {requests.length === 0 && (
               <TableRow>
-                <TableCell colSpan={4} className="text-center text-sm text-muted-foreground">
+                <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
                   No Wellness Leave requests for {year}.
                 </TableCell>
               </TableRow>
@@ -108,6 +109,13 @@ export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/
                   >
                     {request.status}
                   </Badge>
+                </TableCell>
+                <TableCell className="text-right">
+                  <Link href={`/wellness-leave/${request.id}/print`}>
+                    <Button type="button" variant="outline" size="sm">
+                      Print
+                    </Button>
+                  </Link>
                 </TableCell>
               </TableRow>
             ))}
