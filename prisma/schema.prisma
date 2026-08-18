@@ -1,0 +1,215 @@
+// JOCOS Attendance & Payroll System — data model
+// See C:\Users\rgnac\.claude\plans\lazy-marinating-kay.md for the full design context.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// ── Auth / roster ──────────────────────────────────────────────
+
+enum Role {
+  ADMIN
+  MEMBER
+}
+
+model User {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  role         Role
+  employeeId   String?  @unique
+  employee     Employee? @relation(fields: [employeeId], references: [id])
+  createdAt    DateTime @default(now())
+
+  editedAttendanceDays AttendanceDay[]        @relation("AttendanceDayEditor")
+  requestedLeaves      WellnessLeaveRequest[] @relation("LeaveRequester")
+  approvedLeaves       WellnessLeaveRequest[] @relation("LeaveApprover")
+  enteredTripAuths     TripAuthorization[]    @relation("TripAuthEnteredBy")
+  biometricUploads     BiometricUpload[]      @relation("BiometricUploader")
+}
+
+enum EmployeeStatus {
+  ACTIVE
+  INACTIVE
+}
+
+model Employee {
+  id               String         @id @default(cuid())
+  employeeNo       String         @unique
+  officeAssignment String
+  name             String
+  positionTitle    String
+  salaryGrade      Int
+  status           EmployeeStatus @default(ACTIVE)
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  user                  User?
+  attendanceDays        AttendanceDay[]
+  punchRecords          PunchRecord[]
+  wellnessLeaveBalances WellnessLeaveBalance[]
+  wellnessLeaveRequests WellnessLeaveRequest[]
+  tripAuthorizations    TripAuthorization[]
+
+  @@index([officeAssignment])
+  @@index([status])
+}
+
+// ── Salary Grade rate table (page 1 of the source sheet) ───────
+
+model SalaryGradeRate {
+  id            String @id @default(cuid())
+  year          Int
+  salaryGrade   Int
+  monthlyAmount Float
+
+  @@unique([year, salaryGrade])
+}
+
+// ── DTR (Daily Time Record) ─────────────────────────────────────
+
+enum AttendanceCode {
+  PRESENT           // "0" — full day, no undertime
+  LATE              // present, but late/undertime minutes logged
+  ABSENT            // "A" — 0 credit
+  UNDERTIME_HALF    // "U" — present AM only, 0.5 credit
+  TARDY_HALF        // "T" — present PM only, 0.5 credit
+  REST_DAY          // "X" — excluded, not counted, unpaid
+  WORK_SUSPENDED    // "WS" — full credit, no deduction
+  WELLNESS_LEAVE    // "WL" — full credit, paid, draws down WL balance
+  TRIP_AUTHORIZATION // "TA" — credit computed from HR-entered time
+  UNSET             // no data yet — needs manual entry or biometrics review
+}
+
+enum AttendanceSource {
+  BIOMETRIC
+  WELLNESS_LEAVE
+  TRIP_AUTHORIZATION
+  MANUAL
+}
+
+model AttendanceDay {
+  id          String           @id @default(cuid())
+  employeeId  String
+  employee    Employee         @relation(fields: [employeeId], references: [id])
+  date        DateTime
+  code        AttendanceCode   @default(UNSET)
+  lateMinutes Int              @default(0)
+  dayCredit   Float            @default(0)
+  source      AttendanceSource @default(MANUAL)
+  timeIn      DateTime?
+  timeOut     DateTime?
+  notes       String?
+
+  editedById String?
+  editedBy   User?    @relation("AttendanceDayEditor", fields: [editedById], references: [id])
+  editedAt   DateTime @default(now())
+  createdAt  DateTime @default(now())
+
+  @@unique([employeeId, date])
+  @@index([date])
+}
+
+// ── Wellness Leave (COS only) ───────────────────────────────────
+
+model WellnessLeaveBalance {
+  id         String @id @default(cuid())
+  employeeId String
+  employee   Employee @relation(fields: [employeeId], references: [id])
+  year       Int
+  semester   Int // 1 = Jan-Jun (3 days), 2 = Jul-Dec (2 days)
+  allotted   Int
+  used       Int @default(0)
+
+  @@unique([employeeId, year, semester])
+}
+
+enum LeaveRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model WellnessLeaveRequest {
+  id          String              @id @default(cuid())
+  employeeId  String
+  employee    Employee            @relation(fields: [employeeId], references: [id])
+  startDate   DateTime
+  endDate     DateTime
+  daysCount   Int
+  status      LeaveRequestStatus  @default(PENDING)
+  notes       String?
+
+  requestedById String
+  requestedBy   User   @relation("LeaveRequester", fields: [requestedById], references: [id])
+
+  approvedById String?
+  approvedBy   User?    @relation("LeaveApprover", fields: [approvedById], references: [id])
+  approvedAt   DateTime?
+
+  createdAt DateTime @default(now())
+}
+
+// ── Trip Authorization ──────────────────────────────────────────
+
+model TripAuthorization {
+  id             String   @id @default(cuid())
+  employeeId     String
+  employee       Employee @relation(fields: [employeeId], references: [id])
+  date           DateTime
+  timeIn         DateTime?
+  timeOut        DateTime?
+  referenceNo    String?
+  attachmentPath String?
+
+  enteredById String
+  enteredBy   User   @relation("TripAuthEnteredBy", fields: [enteredById], references: [id])
+  createdAt   DateTime @default(now())
+
+  @@index([employeeId, date])
+}
+
+// ── Biometrics import ───────────────────────────────────────────
+
+enum BiometricUploadStatus {
+  UPLOADED
+  PROCESSED
+  REVIEWED
+}
+
+model BiometricUpload {
+  id           String                 @id @default(cuid())
+  filename     String
+  periodStart  DateTime
+  periodEnd    DateTime
+  status       BiometricUploadStatus  @default(UPLOADED)
+
+  uploadedById String
+  uploadedBy   User   @relation("BiometricUploader", fields: [uploadedById], references: [id])
+  uploadedAt   DateTime @default(now())
+
+  punchRecords PunchRecord[]
+}
+
+model PunchRecord {
+  id                String   @id @default(cuid())
+  biometricUploadId String
+  biometricUpload   BiometricUpload @relation(fields: [biometricUploadId], references: [id])
+
+  employeeId String?
+  employee   Employee? @relation(fields: [employeeId], references: [id])
+
+  rawDept      String?
+  rawName      String
+  rawNo        String?
+  timestamp    DateTime
+  isDuplicate  Boolean @default(false)
+  createdAt    DateTime @default(now())
+
+  @@index([employeeId, timestamp])
+}
