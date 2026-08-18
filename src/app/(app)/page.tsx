@@ -17,6 +17,7 @@ export default async function HomePage() {
         <DashboardCard href="/admin/salary-grades" title="Salary Grades" description="Manage the SG rate table" />
         <DashboardCard href="/admin/dtr" title="DTR" description="Enter daily attendance" />
         <DashboardCard href="/admin/payroll" title="Payroll Report" description="Generate the JOCOS report" />
+        <DashboardCard href="/admin/wellness-leave" title="Wellness Leave" description="Balances and approval requests" />
       </div>
     </div>
   );

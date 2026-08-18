@@ -25,6 +25,16 @@ export function getHalfMonthRange(year: number, month: number, half: Half): Peri
   return { start, end, dates };
 }
 
+export function datesBetween(start: Date, end: Date): Date[] {
+  const dates: Date[] = [];
+  const cursor = new Date(start);
+  while (cursor <= end) {
+    dates.push(new Date(cursor));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return dates;
+}
+
 export function formatISODate(date: Date): string {
   return date.toISOString().slice(0, 10);
 }

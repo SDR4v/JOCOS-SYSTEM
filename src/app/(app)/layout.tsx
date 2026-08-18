@@ -29,11 +29,19 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                 <Link href="/admin/payroll" className="text-muted-foreground hover:text-foreground">
                   Payroll Report
                 </Link>
+                <Link href="/admin/wellness-leave" className="text-muted-foreground hover:text-foreground">
+                  Wellness Leave
+                </Link>
               </>
             ) : (
-              <Link href="/my-dtr" className="text-muted-foreground hover:text-foreground">
-                My DTR
-              </Link>
+              <>
+                <Link href="/my-dtr" className="text-muted-foreground hover:text-foreground">
+                  My DTR
+                </Link>
+                <Link href="/my-wellness-leave" className="text-muted-foreground hover:text-foreground">
+                  Wellness Leave
+                </Link>
+              </>
             )}
           </nav>
           <div className="flex items-center gap-3 text-sm">
