@@ -2,6 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { InitializeYearButton } from "./initialize-year-button";
 import { BalancesTable } from "./balances-table";
 import { RequestHistoryTable } from "./request-history-table";
@@ -51,43 +52,51 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
         ))}
       </div>
 
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-muted-foreground">Balances — {year}</h2>
-          {!initialized && <InitializeYearButton year={year} />}
-        </div>
-        {!initialized ? (
-          <p className="text-sm text-muted-foreground">
-            No Wellness Leave balances have been set up for {year} yet. Click &quot;Initialize {year}&quot; to grant
-            every active employee their 3/2-day semester buckets.
-          </p>
-        ) : (
-          <BalancesTable
-            employees={employees.map((e) => ({ id: e.id, name: e.name, officeAssignment: e.officeAssignment }))}
-            balanceMap={balanceMap}
-          />
-        )}
-      </div>
+      <Tabs defaultValue="requests">
+        <TabsList>
+          <TabsTrigger value="requests">Requests</TabsTrigger>
+          <TabsTrigger value="balances">Balances</TabsTrigger>
+        </TabsList>
 
-      {requests.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground">Requests — {year}</h2>
-          <RequestHistoryTable
-            requests={requests.map((r) => ({
-              id: r.id,
-              startDate: r.startDate,
-              endDate: r.endDate,
-              daysCount: r.daysCount,
-              notes: r.notes,
-              status: r.status as "ACTIVE" | "CANCELLED",
-              employee: { name: r.employee.name, officeAssignment: r.employee.officeAssignment, positionTitle: r.employee.positionTitle },
-              createdAt: r.createdAt,
-              cancelledByName: r.cancelledBy?.username ?? null,
-              cancelledAt: r.cancelledAt,
-            }))}
-          />
-        </div>
-      )}
+        <TabsContent value="requests" className="space-y-2 pt-2">
+          {requests.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No Wellness Leave requests for {year}.</p>
+          ) : (
+            <RequestHistoryTable
+              requests={requests.map((r) => ({
+                id: r.id,
+                startDate: r.startDate,
+                endDate: r.endDate,
+                daysCount: r.daysCount,
+                notes: r.notes,
+                status: r.status as "ACTIVE" | "CANCELLED",
+                employee: { name: r.employee.name, officeAssignment: r.employee.officeAssignment, positionTitle: r.employee.positionTitle },
+                createdAt: r.createdAt,
+                cancelledByName: r.cancelledBy?.username ?? null,
+                cancelledAt: r.cancelledAt,
+              }))}
+            />
+          )}
+        </TabsContent>
+
+        <TabsContent value="balances" className="space-y-2 pt-2">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-muted-foreground">Balances — {year}</h2>
+            {!initialized && <InitializeYearButton year={year} />}
+          </div>
+          {!initialized ? (
+            <p className="text-sm text-muted-foreground">
+              No Wellness Leave balances have been set up for {year} yet. Click &quot;Initialize {year}&quot; to grant
+              every active employee their 3/2-day semester buckets.
+            </p>
+          ) : (
+            <BalancesTable
+              employees={employees.map((e) => ({ id: e.id, name: e.name, officeAssignment: e.officeAssignment }))}
+              balanceMap={balanceMap}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
