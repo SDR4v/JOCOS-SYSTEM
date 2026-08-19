@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
@@ -41,28 +42,40 @@ export default async function DtrPrintPage({
       </div>
 
       <div className="mx-auto max-w-2xl bg-white p-8 text-[13px] text-black print:m-0 print:max-w-none print:p-0">
-        <p className="text-xs italic">Civil Service Form No. 48</p>
-        <h1 className="mb-4 text-center text-xl font-bold tracking-wide">DAILY TIME RECORD</h1>
+        <p className="text-right text-xs">Civil Service Form No. 48</p>
 
-        <div className="mb-4 border-b border-black pb-1 text-center text-sm font-medium">{employee.name}</div>
-        <div className="mb-4 border-b border-black pb-1 text-center text-sm">{employee.officeAssignment}</div>
-
-        <div className="mb-3 flex items-end justify-between text-sm">
-          <p>
-            <span className="italic">For the month of</span>{" "}
-            <span className="font-medium">
-              {MONTH_NAMES[month - 1]} {year}
-            </span>
-          </p>
-          <p className="text-right">
-            <span className="italic">Office hours for arrival and departure</span>
-            <br />
-            8:00–12:00 &amp; 1:00–5:00
-          </p>
+        <div className="mb-4 flex items-center gap-3">
+          <Image src="/batac-seal.jpg" alt="" width={56} height={56} className="shrink-0" />
+          <h1 className="text-2xl font-bold tracking-wide">DAILY TIME RECORD</h1>
         </div>
-        <div className="mb-3 flex justify-end gap-8 text-sm">
-          <p>Regular Days ____________</p>
-          <p>Saturdays ____________</p>
+
+        <div className="mb-1 border-b border-black pb-0.5 text-center text-sm font-medium">{employee.name}</div>
+        <p className="mb-3 text-center text-xs italic">(NAME)</p>
+
+        <div className="mb-1 border-b border-black pb-0.5 text-center text-sm">{employee.officeAssignment}</div>
+        <p className="mb-4 text-center text-xs italic">(DEPARTMENT)</p>
+
+        <div className="mb-4 grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p>
+              <span className="italic">For the month of</span>{" "}
+              <span className="border-b border-black font-medium">
+                {MONTH_NAMES[month - 1]} {year}
+              </span>
+            </p>
+            <p className="mt-1">
+              <span className="italic">Office hours for arrival and departure</span>{" "}
+              <span className="border-b border-black">8:00–12:00 &amp; 1:00–5:00</span>
+            </p>
+          </div>
+          <div>
+            <p>
+              <span className="italic">Regular Days</span> <span className="border-b border-black">&nbsp;______________&nbsp;</span>
+            </p>
+            <p className="mt-1">
+              <span className="italic">Saturdays</span> <span className="border-b border-black">&nbsp;______________&nbsp;</span>
+            </p>
+          </div>
         </div>
 
         <table className="w-full border-collapse text-xs">
@@ -144,17 +157,9 @@ export default async function DtrPrintPage({
           which was made daily at the end of arrival and departure from office.
         </p>
 
-        <div className="mt-8 grid grid-cols-2 gap-8">
-          <div>
-            <div className="mb-1 h-8 border-b border-black" />
-            <p className="text-center text-xs">Employee Signature</p>
-          </div>
-          <div>
-            <p className="mb-4 text-xs italic">VERIFIED as to prescribed office hours</p>
-            <div className="mb-1 h-8 border-b border-black" />
-            <p className="text-center text-xs">In-Charge/Supervisor</p>
-          </div>
-        </div>
+        <p className="mt-8 text-xs italic">VERIFIED as to prescribed office hours</p>
+        <div className="mt-8 mb-1 w-64 border-b border-black" />
+        <p className="w-64 text-center text-xs">In-Charge/Supervisor</p>
 
         <p className="mt-6 text-right text-xs text-gray-500">Printed {new Date().toLocaleString()}</p>
       </div>
