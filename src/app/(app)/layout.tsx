@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { requireUser } from "@/lib/session";
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
@@ -12,7 +13,8 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       <header className="border-b bg-white print:hidden">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <nav className="flex items-center gap-4 text-sm">
-            <Link href="/" className="font-semibold">
+            <Link href="/" className="flex items-center gap-2 font-semibold">
+              <Image src="/batac-seal.jpg" alt="" width={28} height={28} className="rounded-full" />
               JOCOS
             </Link>
             {isAdmin ? (
