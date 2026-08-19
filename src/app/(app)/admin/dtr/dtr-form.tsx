@@ -12,17 +12,40 @@ import {
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { ATTENDANCE_CODES, ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
+import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { formatDisplayDate } from "@/lib/period";
+import { computeAttendanceFromTimes, combineDateAndTime, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
 import { saveDtrPeriod } from "./actions";
-import type { AttendanceCode } from "@/generated/prisma/enums";
 
 export type DtrRowValue = {
   date: string;
-  code: AttendanceCode;
-  lateMinutes: number;
+  amArrival: string;
+  amDeparture: string;
+  pmArrival: string;
+  pmDeparture: string;
+  overrideCode: ManualOverrideCode | "";
   notes: string;
 };
+
+function rowPreview(row: DtrRowValue) {
+  if (row.overrideCode) {
+    const meta = ATTENDANCE_CODE_MAP[row.overrideCode];
+    return { code: meta.shortLabel, label: meta.label, dayCredit: meta.defaultDayCredit, lateMinutes: 0 };
+  }
+  const computed = computeAttendanceFromTimes({
+    amArrival: row.amArrival ? combineDateAndTime(row.date, row.amArrival) : null,
+    amDeparture: row.amDeparture ? combineDateAndTime(row.date, row.amDeparture) : null,
+    pmArrival: row.pmArrival ? combineDateAndTime(row.date, row.pmArrival) : null,
+    pmDeparture: row.pmDeparture ? combineDateAndTime(row.date, row.pmDeparture) : null,
+  });
+  const meta = ATTENDANCE_CODE_MAP[computed.code];
+  return {
+    code: computed.code === "LATE" ? String(computed.lateMinutes) : meta.shortLabel,
+    label: meta.label,
+    dayCredit: computed.dayCredit,
+    lateMinutes: computed.lateMinutes,
+  };
+}
 
 export function DtrForm({ employeeId, initialRows }: { employeeId: string; initialRows: DtrRowValue[] }) {
   const [rows, setRows] = useState(initialRows);
@@ -43,66 +66,102 @@ export function DtrForm({ employeeId, initialRows }: { employeeId: string; initi
     });
   }
 
-  const totalCredit = rows.reduce((sum, row) => sum + ATTENDANCE_CODE_MAP[row.code].defaultDayCredit, 0);
-  const totalLateMinutes = rows.reduce((sum, row) => sum + (row.code === "LATE" ? row.lateMinutes : 0), 0);
+  const previews = rows.map(rowPreview);
+  const totalCredit = previews.reduce((sum, p) => sum + p.dayCredit, 0);
+  const totalLateMinutes = previews.reduce((sum, p) => sum + p.lateMinutes, 0);
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-lg border bg-white">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
+              <TableHead>AM Arrival</TableHead>
+              <TableHead>AM Departure</TableHead>
+              <TableHead>PM Arrival</TableHead>
+              <TableHead>PM Departure</TableHead>
+              <TableHead>Override</TableHead>
               <TableHead>Code</TableHead>
-              <TableHead>Late/Undertime (min)</TableHead>
               <TableHead>Notes</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row, i) => (
-              <TableRow key={row.date}>
-                <TableCell className="whitespace-nowrap text-sm">{formatDisplayDate(row.date)}</TableCell>
-                <TableCell>
-                  <Select
-                    value={row.code}
-                    onValueChange={(value) =>
-                      updateRow(i, {
-                        code: value as AttendanceCode,
-                        lateMinutes: value === "LATE" ? row.lateMinutes : 0,
-                      })
-                    }
-                  >
-                    <SelectTrigger size="sm" className="w-56">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ATTENDANCE_CODES.map((meta) => (
-                        <SelectItem key={meta.code} value={meta.code}>
-                          {meta.shortLabel} — {meta.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    min={0}
-                    className="w-24"
-                    disabled={row.code !== "LATE"}
-                    value={row.code === "LATE" ? row.lateMinutes : 0}
-                    onChange={(e) => updateRow(i, { lateMinutes: Number(e.target.value) })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    className="w-56"
-                    value={row.notes}
-                    onChange={(e) => updateRow(i, { notes: e.target.value })}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
+            {rows.map((row, i) => {
+              const preview = previews[i];
+              const timesDisabled = !!row.overrideCode;
+              return (
+                <TableRow key={row.date}>
+                  <TableCell className="whitespace-nowrap text-sm">{formatDisplayDate(row.date)}</TableCell>
+                  <TableCell>
+                    <Input
+                      type="time"
+                      className="w-28"
+                      disabled={timesDisabled}
+                      value={row.amArrival}
+                      onChange={(e) => updateRow(i, { amArrival: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="time"
+                      className="w-28"
+                      disabled={timesDisabled}
+                      value={row.amDeparture}
+                      onChange={(e) => updateRow(i, { amDeparture: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="time"
+                      className="w-28"
+                      disabled={timesDisabled}
+                      value={row.pmArrival}
+                      onChange={(e) => updateRow(i, { pmArrival: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="time"
+                      className="w-28"
+                      disabled={timesDisabled}
+                      value={row.pmDeparture}
+                      onChange={(e) => updateRow(i, { pmDeparture: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={row.overrideCode || "AUTO"}
+                      onValueChange={(value) =>
+                        updateRow(i, { overrideCode: value === "AUTO" ? "" : (value as ManualOverrideCode) })
+                      }
+                    >
+                      <SelectTrigger size="sm" className="w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="AUTO">Auto (from times)</SelectItem>
+                        {MANUAL_OVERRIDE_CODES.map((code) => (
+                          <SelectItem key={code} value={code}>
+                            {ATTENDANCE_CODE_MAP[code].shortLabel} — {ATTENDANCE_CODE_MAP[code].label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="text-sm font-medium whitespace-nowrap" title={preview.label}>
+                    {preview.code}
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      className="w-40"
+                      value={row.notes}
+                      onChange={(e) => updateRow(i, { notes: e.target.value })}
+                    />
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

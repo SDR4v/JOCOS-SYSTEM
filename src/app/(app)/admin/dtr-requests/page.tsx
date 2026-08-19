@@ -1,8 +1,8 @@
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { displayCodeForDay } from "@/lib/attendance-codes";
 import { formatISODate } from "@/lib/period";
+import { formatTimeHHMM, previewRequestCode, type ManualOverrideCode } from "@/lib/dtr-time";
 import { ApproveRejectButtons } from "./request-actions";
 import { HistoryTable } from "./history-table";
 
@@ -33,13 +33,15 @@ export default async function DtrRequestsPage() {
         {pendingRequests.length === 0 ? (
           <p className="text-sm text-muted-foreground">No pending DTR entries to review.</p>
         ) : (
-          <div className="rounded-lg border bg-white">
+          <div className="overflow-x-auto rounded-lg border bg-white">
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Employee</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Proposed Code</TableHead>
+                  <TableHead>AM</TableHead>
+                  <TableHead>PM</TableHead>
+                  <TableHead>Code</TableHead>
                   <TableHead>Notes</TableHead>
                   <TableHead>Submitted</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
@@ -50,7 +52,19 @@ export default async function DtrRequestsPage() {
                   <TableRow key={request.id}>
                     <TableCell className="font-medium">{request.employee.name}</TableCell>
                     <TableCell className="text-sm">{formatISODate(request.date)}</TableCell>
-                    <TableCell className="text-sm">{displayCodeForDay(request.code, request.lateMinutes)}</TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {request.overrideCode
+                        ? "—"
+                        : `${request.amArrival ? formatTimeHHMM(request.amArrival) : "—"}–${request.amDeparture ? formatTimeHHMM(request.amDeparture) : "—"}`}
+                    </TableCell>
+                    <TableCell className="text-sm whitespace-nowrap">
+                      {request.overrideCode
+                        ? "—"
+                        : `${request.pmArrival ? formatTimeHHMM(request.pmArrival) : "—"}–${request.pmDeparture ? formatTimeHHMM(request.pmDeparture) : "—"}`}
+                    </TableCell>
+                    <TableCell className="text-sm font-medium">
+                      {previewRequestCode({ ...request, overrideCode: request.overrideCode as ManualOverrideCode | null })}
+                    </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{request.notes ?? ""}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
                       {formatISODate(request.submittedAt)}
@@ -73,8 +87,11 @@ export default async function DtrRequestsPage() {
             requests={resolvedRequests.map((r) => ({
               id: r.id,
               date: r.date,
-              code: r.code,
-              lateMinutes: r.lateMinutes,
+              amArrival: r.amArrival,
+              amDeparture: r.amDeparture,
+              pmArrival: r.pmArrival,
+              pmDeparture: r.pmDeparture,
+              overrideCode: r.overrideCode as ManualOverrideCode | null,
               notes: r.notes,
               status: r.status as "APPROVED" | "REJECTED",
               employee: { name: r.employee.name },

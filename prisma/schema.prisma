@@ -96,6 +96,13 @@ enum AttendanceSource {
   EMPLOYEE_REQUEST // self-submitted by the COS worker, approved by HR
 }
 
+// A day's entry is driven by CS Form No. 48 (Daily Time Record): four punch
+// times (AM/PM arrival & departure). The JOCOS code/dayCredit/lateMinutes are
+// DERIVED from those times (see lib/dtr-time.ts), except for the manual
+// overrides (REST_DAY, WORK_SUSPENDED, UNSET) that can't come from a punch,
+// and WELLNESS_LEAVE/TRIP_AUTHORIZATION which are written by their own
+// approval flows. Today the times are entered by hand; once RFID/biometric
+// capture lands it fills the same four fields.
 model AttendanceDay {
   id          String           @id @default(cuid())
   employeeId  String
@@ -105,8 +112,10 @@ model AttendanceDay {
   lateMinutes Int              @default(0)
   dayCredit   Float            @default(0)
   source      AttendanceSource @default(MANUAL)
-  timeIn      DateTime?
-  timeOut     DateTime?
+  amArrival   DateTime?
+  amDeparture DateTime?
+  pmArrival   DateTime?
+  pmDeparture DateTime?
   notes       String?
 
   editedById String?
@@ -131,8 +140,11 @@ model DtrEntryRequest {
   employeeId  String
   employee    Employee              @relation(fields: [employeeId], references: [id])
   date        DateTime
-  code        AttendanceCode
-  lateMinutes Int                   @default(0)
+  amArrival   DateTime?
+  amDeparture DateTime?
+  pmArrival   DateTime?
+  pmDeparture DateTime?
+  overrideCode AttendanceCode?      // set only for REST_DAY / WORK_SUSPENDED / UNSET proposals
   notes       String?
   status      DtrEntryRequestStatus @default(PENDING)
   submittedAt DateTime              @default(now())

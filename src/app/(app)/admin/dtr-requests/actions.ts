@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
+import { computeAttendanceFromTimes } from "@/lib/dtr-time";
+import type { AttendanceCode } from "@/generated/prisma/enums";
 
 export type FormState = { error: string | null };
 
@@ -14,11 +16,35 @@ export async function approveDtrEntryRequest(id: string): Promise<FormState> {
   if (!request) return { error: "Request not found" };
   if (request.status !== "PENDING") return { error: "This request has already been resolved" };
 
-  const meta = ATTENDANCE_CODE_MAP[request.code];
+  let code: AttendanceCode;
+  let dayCredit: number;
+  let lateMinutes: number;
+
+  if (request.overrideCode) {
+    const meta = ATTENDANCE_CODE_MAP[request.overrideCode];
+    code = meta.code;
+    dayCredit = meta.defaultDayCredit;
+    lateMinutes = 0;
+  } else {
+    const computed = computeAttendanceFromTimes({
+      amArrival: request.amArrival,
+      amDeparture: request.amDeparture,
+      pmArrival: request.pmArrival,
+      pmDeparture: request.pmDeparture,
+    });
+    code = computed.code;
+    dayCredit = computed.dayCredit;
+    lateMinutes = computed.lateMinutes;
+  }
+
   const data = {
-    code: request.code,
-    lateMinutes: request.lateMinutes,
-    dayCredit: meta.defaultDayCredit,
+    code,
+    lateMinutes,
+    dayCredit,
+    amArrival: request.overrideCode ? null : request.amArrival,
+    amDeparture: request.overrideCode ? null : request.amDeparture,
+    pmArrival: request.overrideCode ? null : request.pmArrival,
+    pmDeparture: request.overrideCode ? null : request.pmDeparture,
     notes: request.notes,
     source: "EMPLOYEE_REQUEST" as const,
     editedById: admin.id,

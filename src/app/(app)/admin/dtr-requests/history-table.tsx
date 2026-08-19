@@ -5,17 +5,19 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { displayCodeForDay } from "@/lib/attendance-codes";
 import { formatISODate } from "@/lib/period";
-import type { AttendanceCode } from "@/generated/prisma/enums";
+import { formatTimeHHMM, previewRequestCode, type ManualOverrideCode } from "@/lib/dtr-time";
 
 type ResolvedStatus = "APPROVED" | "REJECTED";
 
 type ResolvedRequest = {
   id: string;
   date: Date;
-  code: AttendanceCode;
-  lateMinutes: number;
+  amArrival: Date | null;
+  amDeparture: Date | null;
+  pmArrival: Date | null;
+  pmDeparture: Date | null;
+  overrideCode: ManualOverrideCode | null;
   notes: string | null;
   status: ResolvedStatus;
   employee: { name: string };
@@ -70,13 +72,15 @@ export function HistoryTable({ requests }: { requests: ResolvedRequest[] }) {
         </div>
       </div>
 
-      <div className="rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-lg border bg-white">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Employee</TableHead>
               <TableHead>Date</TableHead>
-              <TableHead>Proposed Code</TableHead>
+              <TableHead>AM</TableHead>
+              <TableHead>PM</TableHead>
+              <TableHead>Code</TableHead>
               <TableHead>Notes</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
@@ -84,7 +88,7 @@ export function HistoryTable({ requests }: { requests: ResolvedRequest[] }) {
           <TableBody>
             {filtered.length === 0 && (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-sm text-muted-foreground">
+                <TableCell colSpan={7} className="text-center text-sm text-muted-foreground">
                   No requests match this filter.
                 </TableCell>
               </TableRow>
@@ -93,7 +97,17 @@ export function HistoryTable({ requests }: { requests: ResolvedRequest[] }) {
               <TableRow key={request.id}>
                 <TableCell className="font-medium">{request.employee.name}</TableCell>
                 <TableCell className="text-sm">{formatISODate(request.date)}</TableCell>
-                <TableCell className="text-sm">{displayCodeForDay(request.code, request.lateMinutes)}</TableCell>
+                <TableCell className="text-sm whitespace-nowrap">
+                  {request.overrideCode
+                    ? "—"
+                    : `${request.amArrival ? formatTimeHHMM(request.amArrival) : "—"}–${request.amDeparture ? formatTimeHHMM(request.amDeparture) : "—"}`}
+                </TableCell>
+                <TableCell className="text-sm whitespace-nowrap">
+                  {request.overrideCode
+                    ? "—"
+                    : `${request.pmArrival ? formatTimeHHMM(request.pmArrival) : "—"}–${request.pmDeparture ? formatTimeHHMM(request.pmDeparture) : "—"}`}
+                </TableCell>
+                <TableCell className="text-sm font-medium">{previewRequestCode(request)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{request.notes ?? ""}</TableCell>
                 <TableCell>
                   <Badge variant={request.status === "APPROVED" ? "default" : "destructive"}>{request.status}</Badge>

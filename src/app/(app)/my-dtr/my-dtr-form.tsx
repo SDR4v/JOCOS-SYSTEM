@@ -13,22 +13,46 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ATTENDANCE_CODES } from "@/lib/attendance-codes";
+import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { formatDisplayDate } from "@/lib/period";
+import { computeAttendanceFromTimes, combineDateAndTime, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
 import { submitDtrEntries } from "./actions";
-import type { AttendanceCode } from "@/generated/prisma/enums";
 
 export type MyDtrRow = {
   date: string;
   officialLabel: string;
-  proposedCode: AttendanceCode;
-  proposedLateMinutes: number;
-  proposedNotes: string;
+  amArrival: string;
+  amDeparture: string;
+  pmArrival: string;
+  pmDeparture: string;
+  overrideCode: ManualOverrideCode | "";
+  notes: string;
   pendingStatus: "PENDING" | "REJECTED" | null;
 };
 
-function rowsEqual(a: { code: AttendanceCode; lateMinutes: number; notes: string }, b: typeof a) {
-  return a.code === b.code && a.lateMinutes === b.lateMinutes && a.notes === b.notes;
+function fieldsEqual(a: MyDtrRow, b: MyDtrRow) {
+  return (
+    a.amArrival === b.amArrival &&
+    a.amDeparture === b.amDeparture &&
+    a.pmArrival === b.pmArrival &&
+    a.pmDeparture === b.pmDeparture &&
+    a.overrideCode === b.overrideCode &&
+    a.notes === b.notes
+  );
+}
+
+function rowPreview(row: MyDtrRow) {
+  if (row.overrideCode) {
+    const meta = ATTENDANCE_CODE_MAP[row.overrideCode];
+    return meta.shortLabel;
+  }
+  const computed = computeAttendanceFromTimes({
+    amArrival: row.amArrival ? combineDateAndTime(row.date, row.amArrival) : null,
+    amDeparture: row.amDeparture ? combineDateAndTime(row.date, row.amDeparture) : null,
+    pmArrival: row.pmArrival ? combineDateAndTime(row.date, row.pmArrival) : null,
+    pmDeparture: row.pmDeparture ? combineDateAndTime(row.date, row.pmDeparture) : null,
+  });
+  return computed.code === "LATE" ? String(computed.lateMinutes) : ATTENDANCE_CODE_MAP[computed.code].shortLabel;
 }
 
 export function MyDtrForm({ initialRows }: { initialRows: MyDtrRow[] }) {
@@ -40,13 +64,7 @@ export function MyDtrForm({ initialRows }: { initialRows: MyDtrRow[] }) {
   }
 
   function handleSubmit() {
-    const changed = rows.filter((row, i) => {
-      const original = initialRows[i];
-      return !rowsEqual(
-        { code: row.proposedCode, lateMinutes: row.proposedLateMinutes, notes: row.proposedNotes },
-        { code: original.proposedCode, lateMinutes: original.proposedLateMinutes, notes: original.proposedNotes },
-      );
-    });
+    const changed = rows.filter((row, i) => !fieldsEqual(row, initialRows[i]));
 
     if (changed.length === 0) {
       toast.error("No changes to submit");
@@ -57,9 +75,12 @@ export function MyDtrForm({ initialRows }: { initialRows: MyDtrRow[] }) {
       const result = await submitDtrEntries(
         changed.map((row) => ({
           date: row.date,
-          code: row.proposedCode,
-          lateMinutes: row.proposedLateMinutes,
-          notes: row.proposedNotes,
+          amArrival: row.amArrival,
+          amDeparture: row.amDeparture,
+          pmArrival: row.pmArrival,
+          pmDeparture: row.pmDeparture,
+          overrideCode: row.overrideCode,
+          notes: row.notes,
         })),
       );
       if (!result.error) {
@@ -72,68 +93,100 @@ export function MyDtrForm({ initialRows }: { initialRows: MyDtrRow[] }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-lg border bg-white">
         <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Date</TableHead>
               <TableHead>Official</TableHead>
-              <TableHead>Your Entry</TableHead>
-              <TableHead>Late/Undertime (min)</TableHead>
+              <TableHead>AM Arrival</TableHead>
+              <TableHead>AM Departure</TableHead>
+              <TableHead>PM Arrival</TableHead>
+              <TableHead>PM Departure</TableHead>
+              <TableHead>Override</TableHead>
+              <TableHead>Proposed</TableHead>
               <TableHead>Notes</TableHead>
               <TableHead>Status</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {rows.map((row, i) => (
-              <TableRow key={row.date}>
-                <TableCell className="whitespace-nowrap text-sm">{formatDisplayDate(row.date)}</TableCell>
-                <TableCell className="text-sm text-muted-foreground">{row.officialLabel}</TableCell>
-                <TableCell>
-                  <Select
-                    value={row.proposedCode}
-                    onValueChange={(value) =>
-                      updateRow(i, {
-                        proposedCode: value as AttendanceCode,
-                        proposedLateMinutes: value === "LATE" ? row.proposedLateMinutes : 0,
-                      })
-                    }
-                  >
-                    <SelectTrigger size="sm" className="w-56">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {ATTENDANCE_CODES.map((meta) => (
-                        <SelectItem key={meta.code} value={meta.code}>
-                          {meta.shortLabel} — {meta.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="number"
-                    min={0}
-                    className="w-24"
-                    disabled={row.proposedCode !== "LATE"}
-                    value={row.proposedCode === "LATE" ? row.proposedLateMinutes : 0}
-                    onChange={(e) => updateRow(i, { proposedLateMinutes: Number(e.target.value) })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    className="w-48"
-                    value={row.proposedNotes}
-                    onChange={(e) => updateRow(i, { proposedNotes: e.target.value })}
-                  />
-                </TableCell>
-                <TableCell>
-                  {row.pendingStatus === "PENDING" && <Badge variant="outline">Pending review</Badge>}
-                  {row.pendingStatus === "REJECTED" && <Badge variant="destructive">Rejected</Badge>}
-                </TableCell>
-              </TableRow>
-            ))}
+            {rows.map((row, i) => {
+              const timesDisabled = !!row.overrideCode;
+              return (
+                <TableRow key={row.date}>
+                  <TableCell className="whitespace-nowrap text-sm">{formatDisplayDate(row.date)}</TableCell>
+                  <TableCell className="text-sm text-muted-foreground">{row.officialLabel}</TableCell>
+                  <TableCell>
+                    <Input
+                      type="time"
+                      className="w-28"
+                      disabled={timesDisabled}
+                      value={row.amArrival}
+                      onChange={(e) => updateRow(i, { amArrival: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="time"
+                      className="w-28"
+                      disabled={timesDisabled}
+                      value={row.amDeparture}
+                      onChange={(e) => updateRow(i, { amDeparture: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="time"
+                      className="w-28"
+                      disabled={timesDisabled}
+                      value={row.pmArrival}
+                      onChange={(e) => updateRow(i, { pmArrival: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      type="time"
+                      className="w-28"
+                      disabled={timesDisabled}
+                      value={row.pmDeparture}
+                      onChange={(e) => updateRow(i, { pmDeparture: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Select
+                      value={row.overrideCode || "AUTO"}
+                      onValueChange={(value) =>
+                        updateRow(i, { overrideCode: value === "AUTO" ? "" : (value as ManualOverrideCode) })
+                      }
+                    >
+                      <SelectTrigger size="sm" className="w-36">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="AUTO">Auto (from times)</SelectItem>
+                        {MANUAL_OVERRIDE_CODES.map((code) => (
+                          <SelectItem key={code} value={code}>
+                            {ATTENDANCE_CODE_MAP[code].shortLabel} — {ATTENDANCE_CODE_MAP[code].label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </TableCell>
+                  <TableCell className="text-sm font-medium">{rowPreview(row)}</TableCell>
+                  <TableCell>
+                    <Input
+                      className="w-40"
+                      value={row.notes}
+                      onChange={(e) => updateRow(i, { notes: e.target.value })}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    {row.pendingStatus === "PENDING" && <Badge variant="outline">Pending review</Badge>}
+                    {row.pendingStatus === "REJECTED" && <Badge variant="destructive">Rejected</Badge>}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </div>

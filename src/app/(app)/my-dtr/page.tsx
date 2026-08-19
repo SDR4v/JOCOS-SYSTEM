@@ -1,11 +1,16 @@
+import Link from "next/link";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { computePayroll } from "@/lib/payroll";
 import { displayCodeForDay } from "@/lib/attendance-codes";
 import { getHalfMonthRange, formatISODate, halfLabel, type Half } from "@/lib/period";
+import { formatTimeHHMM, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
 import { MyDtrFilters } from "./my-dtr-filters";
 import { MyDtrForm, type MyDtrRow } from "./my-dtr-form";
+
+const MANUAL_OVERRIDE_SET = new Set<string>(MANUAL_OVERRIDE_CODES);
 
 export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) {
   const user = await requireUser();
@@ -54,24 +59,42 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
 
     const request = requestMap.get(iso);
     const usePending = request?.status === "PENDING";
+    const source = usePending ? request : day;
+    const isManualOverride = usePending
+      ? !!request.overrideCode
+      : day
+        ? MANUAL_OVERRIDE_SET.has(day.code)
+        : false;
 
     return {
       date: iso,
       officialLabel: displayCodeForDay(officialCode, officialLateMinutes),
-      proposedCode: usePending ? request.code : officialCode,
-      proposedLateMinutes: usePending ? request.lateMinutes : officialLateMinutes,
-      proposedNotes: usePending ? (request.notes ?? "") : (day?.notes ?? ""),
+      amArrival: !isManualOverride && source?.amArrival ? formatTimeHHMM(source.amArrival) : "",
+      amDeparture: !isManualOverride && source?.amDeparture ? formatTimeHHMM(source.amDeparture) : "",
+      pmArrival: !isManualOverride && source?.pmArrival ? formatTimeHHMM(source.pmArrival) : "",
+      pmDeparture: !isManualOverride && source?.pmDeparture ? formatTimeHHMM(source.pmDeparture) : "",
+      overrideCode: isManualOverride
+        ? ((usePending ? request.overrideCode : day?.code) as ManualOverrideCode)
+        : "",
+      notes: (usePending ? request.notes : day?.notes) ?? "",
       pendingStatus: request?.status === "PENDING" ? "PENDING" : request?.status === "REJECTED" ? "REJECTED" : null,
     };
   });
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">My DTR</h1>
-        <p className="text-sm text-muted-foreground">
-          {employee.name} &middot; SG {employee.salaryGrade} &middot; {employee.officeAssignment}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">My DTR</h1>
+          <p className="text-sm text-muted-foreground">
+            {employee.name} &middot; SG {employee.salaryGrade} &middot; {employee.officeAssignment}
+          </p>
+        </div>
+        <Link href={`/dtr/${employee.id}/${year}/${month}/print`}>
+          <Button type="button" variant="outline">
+            Print DTR (Form 48)
+          </Button>
+        </Link>
       </div>
 
       <MyDtrFilters year={year} month={month} half={half} />

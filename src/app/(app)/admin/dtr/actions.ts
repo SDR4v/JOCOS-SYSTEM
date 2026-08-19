@@ -6,12 +6,18 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { parseISODate } from "@/lib/period";
-import { AttendanceCode } from "@/generated/prisma/enums";
+import { computeAttendanceFromTimes, combineDateAndTime, MANUAL_OVERRIDE_CODES } from "@/lib/dtr-time";
+import type { AttendanceCode } from "@/generated/prisma/enums";
+
+const timeField = z.union([z.string().regex(/^\d{2}:\d{2}$/), z.literal("")]).optional();
 
 const dtrRowSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  code: z.enum(AttendanceCode),
-  lateMinutes: z.coerce.number().int().min(0).max(1440).default(0),
+  amArrival: timeField,
+  amDeparture: timeField,
+  pmArrival: timeField,
+  pmDeparture: timeField,
+  overrideCode: z.union([z.enum(MANUAL_OVERRIDE_CODES), z.literal("")]).optional(),
   notes: z.string().trim().max(500).optional(),
 });
 
@@ -38,13 +44,40 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
 
   await prisma.$transaction(
     rows.map((row) => {
-      const meta = ATTENDANCE_CODE_MAP[row.code];
-      const lateMinutes = row.code === "LATE" ? row.lateMinutes : 0;
       const date = parseISODate(row.date);
+
+      let code: AttendanceCode;
+      let dayCredit: number;
+      let lateMinutes: number;
+      let amArrival: Date | null = null;
+      let amDeparture: Date | null = null;
+      let pmArrival: Date | null = null;
+      let pmDeparture: Date | null = null;
+
+      if (row.overrideCode) {
+        const meta = ATTENDANCE_CODE_MAP[row.overrideCode];
+        code = meta.code;
+        dayCredit = meta.defaultDayCredit;
+        lateMinutes = 0;
+      } else {
+        amArrival = row.amArrival ? combineDateAndTime(row.date, row.amArrival) : null;
+        amDeparture = row.amDeparture ? combineDateAndTime(row.date, row.amDeparture) : null;
+        pmArrival = row.pmArrival ? combineDateAndTime(row.date, row.pmArrival) : null;
+        pmDeparture = row.pmDeparture ? combineDateAndTime(row.date, row.pmDeparture) : null;
+        const computed = computeAttendanceFromTimes({ amArrival, amDeparture, pmArrival, pmDeparture });
+        code = computed.code;
+        dayCredit = computed.dayCredit;
+        lateMinutes = computed.lateMinutes;
+      }
+
       const data = {
-        code: row.code,
+        code,
         lateMinutes,
-        dayCredit: meta.defaultDayCredit,
+        dayCredit,
+        amArrival,
+        amDeparture,
+        pmArrival,
+        pmDeparture,
         notes: row.notes || null,
         source: "MANUAL" as const,
         editedById: user.id,

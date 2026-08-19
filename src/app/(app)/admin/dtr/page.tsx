@@ -1,8 +1,13 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getHalfMonthRange, formatISODate, type Half } from "@/lib/period";
+import { formatTimeHHMM, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
+import { Button } from "@/components/ui/button";
 import { DtrFilters } from "./dtr-filters";
 import { DtrForm, type DtrRowValue } from "./dtr-form";
+
+const MANUAL_OVERRIDE_SET = new Set<string>(MANUAL_OVERRIDE_CODES);
 
 export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">) {
   await requireAdmin();
@@ -41,19 +46,30 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
   const rows: DtrRowValue[] = dates.map((date) => {
     const iso = formatISODate(date);
     const existing = dayMap.get(iso);
+    const isManualOverride = existing ? MANUAL_OVERRIDE_SET.has(existing.code) : false;
     return {
       date: iso,
-      code: existing?.code ?? "UNSET",
-      lateMinutes: existing?.lateMinutes ?? 0,
+      amArrival: existing?.amArrival ? formatTimeHHMM(existing.amArrival) : "",
+      amDeparture: existing?.amDeparture ? formatTimeHHMM(existing.amDeparture) : "",
+      pmArrival: existing?.pmArrival ? formatTimeHHMM(existing.pmArrival) : "",
+      pmDeparture: existing?.pmDeparture ? formatTimeHHMM(existing.pmDeparture) : "",
+      overrideCode: isManualOverride ? (existing!.code as ManualOverrideCode) : "",
       notes: existing?.notes ?? "",
     };
   });
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">DTR</h1>
-        <p className="text-sm text-muted-foreground">Enter daily attendance for the selected employee and period.</p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">DTR</h1>
+          <p className="text-sm text-muted-foreground">Enter daily attendance for the selected employee and period.</p>
+        </div>
+        <Link href={`/dtr/${employeeId}/${year}/${month}/print`}>
+          <Button type="button" variant="outline">
+            Print DTR (Form 48)
+          </Button>
+        </Link>
       </div>
 
       <DtrFilters employees={employees} employeeId={employeeId} year={year} month={month} half={half} />
