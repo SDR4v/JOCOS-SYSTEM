@@ -14,13 +14,15 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
-import { formatDisplayDate } from "@/lib/period";
+import { formatDisplayDate, parseISODate } from "@/lib/period";
 import {
   computeAttendanceFromTimes,
   combineDateAndTime,
   minutesToHHMM,
+  resolveSchedule,
   MANUAL_OVERRIDE_CODES,
   type ManualOverrideCode,
+  type EmployeeScheduleFields,
   type ResolvedSchedule,
 } from "@/lib/dtr-time";
 import { submitDtrEntries } from "./actions";
@@ -65,7 +67,13 @@ function rowPreview(row: MyDtrRow, schedule: ResolvedSchedule) {
   return computed.code === "LATE" ? String(computed.lateMinutes) : ATTENDANCE_CODE_MAP[computed.code].shortLabel;
 }
 
-export function MyDtrForm({ initialRows, schedule }: { initialRows: MyDtrRow[]; schedule: ResolvedSchedule }) {
+export function MyDtrForm({
+  initialRows,
+  employeeSchedule,
+}: {
+  initialRows: MyDtrRow[];
+  employeeSchedule: EmployeeScheduleFields;
+}) {
   const [rows, setRows] = useState(initialRows);
   const [pending, startTransition] = useTransition();
 
@@ -101,15 +109,18 @@ export function MyDtrForm({ initialRows, schedule }: { initialRows: MyDtrRow[]; 
     });
   }
 
-  const hasSecondSession = !!schedule.session2;
+  const schedules = rows.map((row) => resolveSchedule(employeeSchedule, parseISODate(row.date).getUTCDay()));
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Your schedule: {minutesToHHMM(schedule.session1.start)}–{minutesToHHMM(schedule.session1.end)}
-        {schedule.session2
-          ? ` & ${minutesToHHMM(schedule.session2.start)}–${minutesToHHMM(schedule.session2.end)}`
-          : " (single continuous session, no PM)"}
+        {employeeSchedule.scheduleMode === "PER_DAY"
+          ? "Your schedule varies by day of week — hover a row's date for that day's hours."
+          : `Your schedule: ${minutesToHHMM(schedules[0].session1.start)}–${minutesToHHMM(schedules[0].session1.end)}${
+              schedules[0].session2
+                ? ` & ${minutesToHHMM(schedules[0].session2.start)}–${minutesToHHMM(schedules[0].session2.end)}`
+                : " (single continuous session, no PM)"
+            }`}
       </p>
       <div className="overflow-x-auto rounded-lg border bg-white">
         <Table>
@@ -129,10 +140,17 @@ export function MyDtrForm({ initialRows, schedule }: { initialRows: MyDtrRow[]; 
           </TableHeader>
           <TableBody>
             {rows.map((row, i) => {
+              const schedule = schedules[i];
+              const hasSecondSession = !!schedule.session2;
               const timesDisabled = !!row.overrideCode;
+              const scheduleTitle = `${minutesToHHMM(schedule.session1.start)}–${minutesToHHMM(schedule.session1.end)}${
+                schedule.session2 ? ` & ${minutesToHHMM(schedule.session2.start)}–${minutesToHHMM(schedule.session2.end)}` : ""
+              }`;
               return (
                 <TableRow key={row.date}>
-                  <TableCell className="whitespace-nowrap text-sm">{formatDisplayDate(row.date)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm" title={scheduleTitle}>
+                    {formatDisplayDate(row.date)}
+                  </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{row.officialLabel}</TableCell>
                   <TableCell>
                     <Input
@@ -190,7 +208,7 @@ export function MyDtrForm({ initialRows, schedule }: { initialRows: MyDtrRow[]; 
                       </SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell className="text-sm font-medium">{rowPreview(row, schedule)}</TableCell>
+                  <TableCell className="text-sm font-medium">{rowPreview(row, schedules[i])}</TableCell>
                   <TableCell>
                     <Input
                       className="w-40"

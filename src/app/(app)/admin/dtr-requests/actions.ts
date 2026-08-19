@@ -16,7 +16,10 @@ export async function approveDtrEntryRequest(id: string): Promise<FormState> {
   if (!request) return { error: "Request not found" };
   if (request.status !== "PENDING") return { error: "This request has already been resolved" };
 
-  const employee = await prisma.employee.findUnique({ where: { id: request.employeeId } });
+  const employee = await prisma.employee.findUnique({
+    where: { id: request.employeeId },
+    include: { daySchedules: true },
+  });
   if (!employee) return { error: "Employee not found" };
 
   let code: AttendanceCode;
@@ -36,7 +39,7 @@ export async function approveDtrEntryRequest(id: string): Promise<FormState> {
         pmArrival: request.pmArrival,
         pmDeparture: request.pmDeparture,
       },
-      resolveSchedule(employee),
+      resolveSchedule(employee, request.date.getUTCDay()),
     );
     code = computed.code;
     dayCredit = computed.dayCredit;

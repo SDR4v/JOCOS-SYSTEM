@@ -18,11 +18,18 @@ type EmployeeRow = {
   positionTitle: string;
   salaryGrade: number;
   status: "ACTIVE" | "INACTIVE";
-  scheduleMode: "STANDARD" | "CUSTOM";
+  scheduleMode: "STANDARD" | "CUSTOM" | "PER_DAY";
   session1Start: number | null;
   session1End: number | null;
   session2Start: number | null;
   session2End: number | null;
+  daySchedules: {
+    dayOfWeek: number;
+    session1Start: number | null;
+    session1End: number | null;
+    session2Start: number | null;
+    session2End: number | null;
+  }[];
   user: { username: string } | null;
 };
 

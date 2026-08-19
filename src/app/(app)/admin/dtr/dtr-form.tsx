@@ -13,13 +13,15 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
-import { formatDisplayDate } from "@/lib/period";
+import { formatDisplayDate, parseISODate } from "@/lib/period";
 import {
   computeAttendanceFromTimes,
   combineDateAndTime,
   minutesToHHMM,
+  resolveSchedule,
   MANUAL_OVERRIDE_CODES,
   type ManualOverrideCode,
+  type EmployeeScheduleFields,
   type ResolvedSchedule,
 } from "@/lib/dtr-time";
 import { saveDtrPeriod } from "./actions";
@@ -60,11 +62,11 @@ function rowPreview(row: DtrRowValue, schedule: ResolvedSchedule) {
 export function DtrForm({
   employeeId,
   initialRows,
-  schedule,
+  employeeSchedule,
 }: {
   employeeId: string;
   initialRows: DtrRowValue[];
-  schedule: ResolvedSchedule;
+  employeeSchedule: EmployeeScheduleFields;
 }) {
   const [rows, setRows] = useState(initialRows);
   const [pending, startTransition] = useTransition();
@@ -84,18 +86,21 @@ export function DtrForm({
     });
   }
 
-  const previews = rows.map((row) => rowPreview(row, schedule));
-  const hasSecondSession = !!schedule.session2;
+  const schedules = rows.map((row) => resolveSchedule(employeeSchedule, parseISODate(row.date).getUTCDay()));
+  const previews = rows.map((row, i) => rowPreview(row, schedules[i]));
   const totalCredit = previews.reduce((sum, p) => sum + p.dayCredit, 0);
   const totalLateMinutes = previews.reduce((sum, p) => sum + p.lateMinutes, 0);
 
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted-foreground">
-        Schedule: {minutesToHHMM(schedule.session1.start)}–{minutesToHHMM(schedule.session1.end)}
-        {schedule.session2
-          ? ` & ${minutesToHHMM(schedule.session2.start)}–${minutesToHHMM(schedule.session2.end)}`
-          : " (single continuous session, no PM)"}
+        {employeeSchedule.scheduleMode === "PER_DAY"
+          ? "Schedule varies by day of week — hover a row's Sched column for that day's hours."
+          : `Schedule: ${minutesToHHMM(schedules[0].session1.start)}–${minutesToHHMM(schedules[0].session1.end)}${
+              schedules[0].session2
+                ? ` & ${minutesToHHMM(schedules[0].session2.start)}–${minutesToHHMM(schedules[0].session2.end)}`
+                : " (single continuous session, no PM)"
+            }`}
       </p>
       <div className="overflow-x-auto rounded-lg border bg-white">
         <Table>
@@ -114,10 +119,17 @@ export function DtrForm({
           <TableBody>
             {rows.map((row, i) => {
               const preview = previews[i];
+              const schedule = schedules[i];
+              const hasSecondSession = !!schedule.session2;
               const timesDisabled = !!row.overrideCode;
+              const scheduleTitle = `${minutesToHHMM(schedule.session1.start)}–${minutesToHHMM(schedule.session1.end)}${
+                schedule.session2 ? ` & ${minutesToHHMM(schedule.session2.start)}–${minutesToHHMM(schedule.session2.end)}` : ""
+              }`;
               return (
                 <TableRow key={row.date}>
-                  <TableCell className="whitespace-nowrap text-sm">{formatDisplayDate(row.date)}</TableCell>
+                  <TableCell className="whitespace-nowrap text-sm" title={scheduleTitle}>
+                    {formatDisplayDate(row.date)}
+                  </TableCell>
                   <TableCell>
                     <Input
                       type="time"

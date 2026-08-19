@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getMonthRange, formatISODate, MONTH_NAMES } from "@/lib/period";
-import { formatTimeHHMM, minutesToHHMM, resolveSchedule, MANUAL_OVERRIDE_CODES, type ResolvedSchedule } from "@/lib/dtr-time";
+import { formatTimeHHMM, minutesToHHMM, resolveSchedule, MANUAL_OVERRIDE_CODES } from "@/lib/dtr-time";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { PrintButton } from "./print-button";
 
@@ -23,9 +23,21 @@ export default async function DtrPrintPage({
   const month = Number(monthParam);
   if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) notFound();
 
-  const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    include: { daySchedules: true },
+  });
   if (!employee) notFound();
-  const schedule = resolveSchedule(employee);
+
+  const officeHoursLabel =
+    employee.scheduleMode === "PER_DAY"
+      ? "Varies by day"
+      : (() => {
+          const schedule = resolveSchedule(employee, 1); // Monday — representative for a uniform CUSTOM/STANDARD schedule
+          return schedule.session2
+            ? `${minutesToHHMM(schedule.session1.start)}–${minutesToHHMM(schedule.session1.end)} & ${minutesToHHMM(schedule.session2.start)}–${minutesToHHMM(schedule.session2.end)}`
+            : `${minutesToHHMM(schedule.session1.start)}–${minutesToHHMM(schedule.session1.end)} (continuous)`;
+        })();
 
   const { dates } = getMonthRange(year, month);
   const days = await prisma.attendanceDay.findMany({
@@ -53,7 +65,7 @@ export default async function DtrPrintPage({
           <DtrFormCopy
             employeeName={employee.name}
             officeAssignment={employee.officeAssignment}
-            schedule={schedule}
+            officeHoursLabel={officeHoursLabel}
             year={year}
             month={month}
             dates={dates}
@@ -66,7 +78,7 @@ export default async function DtrPrintPage({
           <DtrFormCopy
             employeeName={employee.name}
             officeAssignment={employee.officeAssignment}
-            schedule={schedule}
+            officeHoursLabel={officeHoursLabel}
             year={year}
             month={month}
             dates={dates}
@@ -85,7 +97,7 @@ export default async function DtrPrintPage({
 function DtrFormCopy({
   employeeName,
   officeAssignment,
-  schedule,
+  officeHoursLabel,
   year,
   month,
   dates,
@@ -95,7 +107,7 @@ function DtrFormCopy({
 }: {
   employeeName: string;
   officeAssignment: string;
-  schedule: ResolvedSchedule;
+  officeHoursLabel: string;
   year: number;
   month: number;
   dates: Date[];
@@ -103,9 +115,6 @@ function DtrFormCopy({
   totalHours: number;
   totalMinutes: number;
 }) {
-  const officeHoursLabel = schedule.session2
-    ? `${minutesToHHMM(schedule.session1.start)}–${minutesToHHMM(schedule.session1.end)} & ${minutesToHHMM(schedule.session2.start)}–${minutesToHHMM(schedule.session2.end)}`
-    : `${minutesToHHMM(schedule.session1.start)}–${minutesToHHMM(schedule.session1.end)} (continuous)`;
   return (
     <div className="w-[340px] text-[11px] text-black">
       <p className="text-right text-[10px] font-medium text-primary">Civil Service Form No. 48</p>

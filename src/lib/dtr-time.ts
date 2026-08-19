@@ -65,6 +65,17 @@ export function combineDateAndTime(dateIso: string, timeHHMM: string): Date | nu
 }
 
 // ── Per-employee schedule ────────────────────────────────────────
+// dayOfWeek: 0 = Sunday ... 6 = Saturday (matches Date#getUTCDay()).
+
+export const DAY_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"] as const;
+
+export type EmployeeDayScheduleFields = {
+  dayOfWeek: number;
+  session1Start: number | null;
+  session1End: number | null;
+  session2Start: number | null;
+  session2End: number | null;
+};
 
 export type EmployeeScheduleFields = {
   scheduleMode: ScheduleMode;
@@ -72,6 +83,7 @@ export type EmployeeScheduleFields = {
   session1End: number | null;
   session2Start: number | null;
   session2End: number | null;
+  daySchedules?: EmployeeDayScheduleFields[];
 };
 
 export type ResolvedSchedule = {
@@ -81,18 +93,36 @@ export type ResolvedSchedule = {
   session2: { start: number; end: number } | null;
 };
 
-export function resolveSchedule(employee: EmployeeScheduleFields): ResolvedSchedule {
-  if (employee.scheduleMode === "CUSTOM" && employee.session1Start !== null && employee.session1End !== null) {
-    const session2 =
-      employee.session2Start !== null && employee.session2End !== null
-        ? { start: employee.session2Start, end: employee.session2End }
-        : null;
-    return { session1: { start: employee.session1Start, end: employee.session1End }, session2 };
+const STANDARD_RESOLVED: ResolvedSchedule = {
+  session1: { start: STANDARD_HOURS.amStart, end: STANDARD_HOURS.amEnd },
+  session2: { start: STANDARD_HOURS.pmStart, end: STANDARD_HOURS.pmEnd },
+};
+
+function resolveSessions(fields: {
+  session1Start: number | null;
+  session1End: number | null;
+  session2Start: number | null;
+  session2End: number | null;
+}): ResolvedSchedule | null {
+  if (fields.session1Start === null || fields.session1End === null) return null;
+  const session2 =
+    fields.session2Start !== null && fields.session2End !== null
+      ? { start: fields.session2Start, end: fields.session2End }
+      : null;
+  return { session1: { start: fields.session1Start, end: fields.session1End }, session2 };
+}
+
+// Resolves an employee's schedule for a specific day of week. Required for
+// PER_DAY mode (Monday can differ from Tuesday); ignored for STANDARD/CUSTOM.
+export function resolveSchedule(employee: EmployeeScheduleFields, dayOfWeek: number): ResolvedSchedule {
+  if (employee.scheduleMode === "PER_DAY") {
+    const day = employee.daySchedules?.find((d) => d.dayOfWeek === dayOfWeek);
+    return (day && resolveSessions(day)) ?? STANDARD_RESOLVED;
   }
-  return {
-    session1: { start: STANDARD_HOURS.amStart, end: STANDARD_HOURS.amEnd },
-    session2: { start: STANDARD_HOURS.pmStart, end: STANDARD_HOURS.pmEnd },
-  };
+  if (employee.scheduleMode === "CUSTOM") {
+    return resolveSessions(employee) ?? STANDARD_RESOLVED;
+  }
+  return STANDARD_RESOLVED;
 }
 
 // Minutes elapsed from `base` to `t`, wrapping through midnight (always 0-1439).

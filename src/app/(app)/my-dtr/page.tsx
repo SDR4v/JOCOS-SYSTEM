@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { computePayroll } from "@/lib/payroll";
 import { displayCodeForDay } from "@/lib/attendance-codes";
 import { getHalfMonthRange, formatISODate, halfLabel, type Half } from "@/lib/period";
-import { formatTimeHHMM, resolveSchedule, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
+import { formatTimeHHMM, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
 import { MyDtrFilters } from "./my-dtr-filters";
 import { MyDtrForm, type MyDtrRow } from "./my-dtr-form";
 import { MyScheduleDialog } from "./my-schedule-dialog";
@@ -33,8 +33,10 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
   const month = clampMonth(Number(params.month) || now.getMonth() + 1);
   const half: Half = Number(params.half) === 2 ? 2 : 1;
 
-  const employee = await prisma.employee.findUniqueOrThrow({ where: { id: user.employeeId } });
-  const schedule = resolveSchedule(employee);
+  const employee = await prisma.employee.findUniqueOrThrow({
+    where: { id: user.employeeId },
+    include: { daySchedules: true },
+  });
   const { start, end, dates } = getHalfMonthRange(year, month, half);
 
   const [days, requests, rate] = await Promise.all([
@@ -119,7 +121,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
         </CardContent>
       </Card>
 
-      <MyDtrForm key={`${year}-${month}-${half}`} initialRows={rows} schedule={schedule} />
+      <MyDtrForm key={`${year}-${month}-${half}`} initialRows={rows} employeeSchedule={employee} />
     </div>
   );
 }

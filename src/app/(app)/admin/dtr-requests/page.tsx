@@ -10,7 +10,7 @@ export default async function DtrRequestsPage() {
   await requireAdmin();
 
   const requests = await prisma.dtrEntryRequest.findMany({
-    include: { employee: true },
+    include: { employee: { include: { daySchedules: true } } },
     orderBy: { submittedAt: "desc" },
   });
 
@@ -65,7 +65,7 @@ export default async function DtrRequestsPage() {
                     <TableCell className="text-sm font-medium">
                       {previewRequestCode(
                         { ...request, overrideCode: request.overrideCode as ManualOverrideCode | null },
-                        resolveSchedule(request.employee),
+                        resolveSchedule(request.employee, request.date.getUTCDay()),
                       )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{request.notes ?? ""}</TableCell>
@@ -98,7 +98,7 @@ export default async function DtrRequestsPage() {
               notes: r.notes,
               status: r.status as "APPROVED" | "REJECTED",
               employee: { name: r.employee.name },
-              schedule: resolveSchedule(r.employee),
+              schedule: resolveSchedule(r.employee, r.date.getUTCDay()),
             }))}
           />
         </div>

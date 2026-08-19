@@ -39,13 +39,16 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
 
   const { employeeId, rows } = parsed.data;
 
-  const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
+  const employee = await prisma.employee.findUnique({
+    where: { id: employeeId },
+    include: { daySchedules: true },
+  });
   if (!employee) return { error: "Employee not found" };
-  const schedule = resolveSchedule(employee);
 
   await prisma.$transaction(
     rows.map((row) => {
       const date = parseISODate(row.date);
+      const schedule = resolveSchedule(employee, date.getUTCDay());
 
       let code: AttendanceCode;
       let dayCredit: number;

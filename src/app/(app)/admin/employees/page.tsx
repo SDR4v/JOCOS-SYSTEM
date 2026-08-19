@@ -7,7 +7,7 @@ export default async function EmployeesPage() {
   await requireAdmin();
 
   const employees = await prisma.employee.findMany({
-    include: { user: true },
+    include: { user: true, daySchedules: true },
     orderBy: [{ officeAssignment: "asc" }, { name: "asc" }],
   });
 

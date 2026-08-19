@@ -40,14 +40,18 @@ enum EmployeeStatus {
 }
 
 // Work schedule the DTR is graded against. STANDARD = the default 8-12 &
-// 1-5 office hours. CUSTOM = the employee's own hours (session1*, plus
-// optional session2* — night shifts, split/irregular shifts, or a single
-// continuous session with no lunch break when session2 is left unset).
-// Minutes are minutes-since-midnight (0-1439); a session may cross
-// midnight (end < start).
+// 1-5 office hours, every day. CUSTOM = the employee's own hours
+// (session1*, plus optional session2* — night shifts, split/irregular
+// shifts, or a single continuous session with no lunch break when
+// session2 is left unset), the SAME every day. PER_DAY = hours that vary
+// by day of week (see EmployeeDaySchedule) — e.g. different on Monday
+// than Tuesday, or off entirely on some days. Minutes are
+// minutes-since-midnight (0-1439); a session may cross midnight
+// (end < start).
 enum ScheduleMode {
   STANDARD
   CUSTOM
+  PER_DAY
 }
 
 model Employee {
@@ -73,9 +77,28 @@ model Employee {
   wellnessLeaveRequests WellnessLeaveRequest[]
   tripAuthorizations    TripAuthorization[]
   dtrEntryRequests      DtrEntryRequest[]
+  daySchedules          EmployeeDaySchedule[]
 
   @@index([officeAssignment])
   @@index([status])
+}
+
+// One row per configured weekday, used only when Employee.scheduleMode
+// is PER_DAY. dayOfWeek: 0 = Sunday ... 6 = Saturday. A weekday with no
+// row (or with session1Start/End left null) falls back to the standard
+// 8-12 & 1-5 hours for that day. session2 absent = single continuous
+// session (no lunch break) for that day.
+model EmployeeDaySchedule {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  dayOfWeek     Int
+  session1Start Int?
+  session1End   Int?
+  session2Start Int?
+  session2End   Int?
+
+  @@unique([employeeId, dayOfWeek])
 }
 
 // ── Salary Grade rate table (page 1 of the source sheet) ───────

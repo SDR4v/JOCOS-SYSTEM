@@ -18,11 +18,18 @@ export function MyScheduleDialog({
   employee,
 }: {
   employee: {
-    scheduleMode: "STANDARD" | "CUSTOM";
+    scheduleMode: "STANDARD" | "CUSTOM" | "PER_DAY";
     session1Start: number | null;
     session1End: number | null;
     session2Start: number | null;
     session2End: number | null;
+    daySchedules?: {
+      dayOfWeek: number;
+      session1Start: number | null;
+      session1End: number | null;
+      session2Start: number | null;
+      session2End: number | null;
+    }[];
   };
 }) {
   const [open, setOpen] = useState(false);
@@ -48,7 +55,7 @@ export function MyScheduleDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger render={<Button type="button" variant="outline">My Schedule</Button>} />
-      <DialogContent>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>My Work Schedule</DialogTitle>
         </DialogHeader>
