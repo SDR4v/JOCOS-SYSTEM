@@ -2,12 +2,12 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatISODate } from "@/lib/period";
-import { semesterLabel } from "@/lib/wellness-leave";
 import { NewWellnessLeaveRequestDialog, ApproveRejectButtons } from "./wellness-leave-dialogs";
 import { InitializeYearButton } from "./initialize-year-button";
+import { BalancesTable } from "./balances-table";
+import { RequestHistoryTable } from "./request-history-table";
 
 export default async function WellnessLeavePage({ searchParams }: PageProps<"/admin/wellness-leave">) {
   await requireAdmin();
@@ -30,7 +30,7 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
     }),
   ]);
 
-  const balanceMap = new Map(balances.map((b) => [`${b.employeeId}-${b.semester}`, b]));
+  const balanceMap = Object.fromEntries(balances.map((b) => [`${b.employeeId}-${b.semester}`, b]));
   const initialized = balances.length > 0;
 
   const pendingRequests = requests.filter((r) => r.status === "PENDING");
@@ -110,88 +110,26 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
             every active employee their 3/2-day semester buckets.
           </p>
         ) : (
-          <div className="rounded-lg border bg-white">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead className="text-right">1st Sem Used</TableHead>
-                  <TableHead className="text-right">1st Sem Remaining</TableHead>
-                  <TableHead className="text-right">2nd Sem Used</TableHead>
-                  <TableHead className="text-right">2nd Sem Remaining</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {employees.map((employee) => {
-                  const sem1 = balanceMap.get(`${employee.id}-1`);
-                  const sem2 = balanceMap.get(`${employee.id}-2`);
-                  return (
-                    <TableRow key={employee.id}>
-                      <TableCell className="font-medium">{employee.name}</TableCell>
-                      <TableCell className="text-right">{sem1 ? sem1.used : "—"}</TableCell>
-                      <TableCell className="text-right">{sem1 ? sem1.allotted - sem1.used : "—"}</TableCell>
-                      <TableCell className="text-right">{sem2 ? sem2.used : "—"}</TableCell>
-                      <TableCell className="text-right">{sem2 ? sem2.allotted - sem2.used : "—"}</TableCell>
-                      <TableCell className="text-right">
-                        <Link href={`/wellness-leave/blank/${employee.id}/print`}>
-                          <Button type="button" variant="outline" size="sm">
-                            Print
-                          </Button>
-                        </Link>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          </div>
+          <BalancesTable
+            employees={employees.map((e) => ({ id: e.id, name: e.name, officeAssignment: e.officeAssignment }))}
+            balanceMap={balanceMap}
+          />
         )}
       </div>
 
       {resolvedRequests.length > 0 && (
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-muted-foreground">Request History</h2>
-          <div className="rounded-lg border bg-white">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Dates</TableHead>
-                  <TableHead>Semester</TableHead>
-                  <TableHead>Days</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {resolvedRequests.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-medium">{request.employee.name}</TableCell>
-                    <TableCell className="text-sm">
-                      {formatISODate(request.startDate)} – {formatISODate(request.endDate)}
-                    </TableCell>
-                    <TableCell className="text-sm">
-                      {semesterLabel(request.startDate.getUTCMonth() < 6 ? 1 : 2)}
-                    </TableCell>
-                    <TableCell>{request.daysCount}</TableCell>
-                    <TableCell>
-                      <Badge variant={request.status === "APPROVED" ? "default" : "secondary"}>
-                        {request.status}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <Link href={`/wellness-leave/${request.id}/print`}>
-                        <Button type="button" variant="outline" size="sm">
-                          Print
-                        </Button>
-                      </Link>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
+          <RequestHistoryTable
+            requests={resolvedRequests.map((r) => ({
+              id: r.id,
+              startDate: r.startDate,
+              endDate: r.endDate,
+              daysCount: r.daysCount,
+              status: r.status as "APPROVED" | "REJECTED",
+              employee: { name: r.employee.name },
+            }))}
+          />
         </div>
       )}
     </div>
