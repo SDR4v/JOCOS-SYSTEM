@@ -42,7 +42,7 @@ export default async function DtrPrintPage({
       </div>
 
       <div className="mx-auto max-w-2xl bg-white p-8 text-[13px] text-black print:m-0 print:max-w-none print:p-0">
-        <p className="text-right text-xs">Civil Service Form No. 48</p>
+        <p className="text-right text-xs font-medium text-primary">Civil Service Form No. 48</p>
 
         <div className="mb-4 flex items-center gap-3">
           <Image src="/batac-seal.jpg" alt="" width={56} height={56} className="shrink-0" />
@@ -80,7 +80,7 @@ export default async function DtrPrintPage({
 
         <table className="w-full border-collapse text-xs">
           <thead>
-            <tr>
+            <tr className="text-brand-gold">
               <th rowSpan={2} className="border border-black p-1 align-middle">
                 Day
               </th>
@@ -94,7 +94,7 @@ export default async function DtrPrintPage({
                 Undertime
               </th>
             </tr>
-            <tr>
+            <tr className="text-primary">
               <th className="border border-black p-1 font-normal">Arrival</th>
               <th className="border border-black p-1 font-normal">Departure</th>
               <th className="border border-black p-1 font-normal">Arrival</th>
@@ -112,7 +112,7 @@ export default async function DtrPrintPage({
 
               return (
                 <tr key={iso}>
-                  <td className="border border-black p-1 text-center">{date.getUTCDate()}</td>
+                  <td className="border border-black p-1 text-center text-primary">{date.getUTCDate()}</td>
                   {isSpecial ? (
                     <td colSpan={4} className="border border-black p-1 text-center italic text-gray-600">
                       {ATTENDANCE_CODE_MAP[day!.code].shortLabel} — {ATTENDANCE_CODE_MAP[day!.code].label}
