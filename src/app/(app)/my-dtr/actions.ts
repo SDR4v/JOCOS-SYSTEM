@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { parseISODate } from "@/lib/period";
-import { MANUAL_OVERRIDE_CODES, combineDateAndTime } from "@/lib/dtr-time";
+import { MANUAL_OVERRIDE_CODES, combineDateAndTime, hhmmToMinutes } from "@/lib/dtr-time";
 
 const timeField = z.union([z.string().regex(/^\d{2}:\d{2}$/), z.literal("")]).optional();
 
@@ -59,5 +59,50 @@ export async function submitDtrEntries(rows: unknown): Promise<FormState> {
 
   revalidatePath("/my-dtr");
   revalidatePath("/admin/dtr-requests");
+  return { error: null };
+}
+
+const scheduleSchema = z
+  .object({
+    scheduleMode: z.enum(["STANDARD", "CUSTOM"]),
+    session1Start: z.string().optional(),
+    session1End: z.string().optional(),
+    hasSession2: z.boolean(),
+    session2Start: z.string().optional(),
+    session2End: z.string().optional(),
+  })
+  .refine((v) => v.scheduleMode !== "CUSTOM" || (v.session1Start && v.session1End), {
+    message: "Session 1 start and end are required for a custom schedule",
+  })
+  .refine((v) => v.scheduleMode !== "CUSTOM" || !v.hasSession2 || (v.session2Start && v.session2End), {
+    message: "Session 2 start and end are required when a second session is set",
+  });
+
+export async function updateMySchedule(input: unknown): Promise<FormState> {
+  const user = await requireUser();
+  if (!user.employeeId) {
+    return { error: "Your account isn't linked to an employee record." };
+  }
+
+  const parsed = scheduleSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const { scheduleMode, session1Start, session1End, hasSession2, session2Start, session2End } = parsed.data;
+  const isCustom = scheduleMode === "CUSTOM";
+
+  await prisma.employee.update({
+    where: { id: user.employeeId },
+    data: {
+      scheduleMode,
+      session1Start: isCustom ? hhmmToMinutes(session1Start!) : null,
+      session1End: isCustom ? hhmmToMinutes(session1End!) : null,
+      session2Start: isCustom && hasSession2 ? hhmmToMinutes(session2Start!) : null,
+      session2End: isCustom && hasSession2 ? hhmmToMinutes(session2End!) : null,
+    },
+  });
+
+  revalidatePath("/my-dtr");
   return { error: null };
 }

@@ -14,7 +14,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { formatDisplayDate } from "@/lib/period";
-import { computeAttendanceFromTimes, combineDateAndTime, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
+import {
+  computeAttendanceFromTimes,
+  combineDateAndTime,
+  minutesToHHMM,
+  MANUAL_OVERRIDE_CODES,
+  type ManualOverrideCode,
+  type ResolvedSchedule,
+} from "@/lib/dtr-time";
 import { saveDtrPeriod } from "./actions";
 
 export type DtrRowValue = {
@@ -27,17 +34,20 @@ export type DtrRowValue = {
   notes: string;
 };
 
-function rowPreview(row: DtrRowValue) {
+function rowPreview(row: DtrRowValue, schedule: ResolvedSchedule) {
   if (row.overrideCode) {
     const meta = ATTENDANCE_CODE_MAP[row.overrideCode];
     return { code: meta.shortLabel, label: meta.label, dayCredit: meta.defaultDayCredit, lateMinutes: 0 };
   }
-  const computed = computeAttendanceFromTimes({
-    amArrival: row.amArrival ? combineDateAndTime(row.date, row.amArrival) : null,
-    amDeparture: row.amDeparture ? combineDateAndTime(row.date, row.amDeparture) : null,
-    pmArrival: row.pmArrival ? combineDateAndTime(row.date, row.pmArrival) : null,
-    pmDeparture: row.pmDeparture ? combineDateAndTime(row.date, row.pmDeparture) : null,
-  });
+  const computed = computeAttendanceFromTimes(
+    {
+      amArrival: row.amArrival ? combineDateAndTime(row.date, row.amArrival) : null,
+      amDeparture: row.amDeparture ? combineDateAndTime(row.date, row.amDeparture) : null,
+      pmArrival: row.pmArrival ? combineDateAndTime(row.date, row.pmArrival) : null,
+      pmDeparture: row.pmDeparture ? combineDateAndTime(row.date, row.pmDeparture) : null,
+    },
+    schedule,
+  );
   const meta = ATTENDANCE_CODE_MAP[computed.code];
   return {
     code: computed.code === "LATE" ? String(computed.lateMinutes) : meta.shortLabel,
@@ -47,7 +57,15 @@ function rowPreview(row: DtrRowValue) {
   };
 }
 
-export function DtrForm({ employeeId, initialRows }: { employeeId: string; initialRows: DtrRowValue[] }) {
+export function DtrForm({
+  employeeId,
+  initialRows,
+  schedule,
+}: {
+  employeeId: string;
+  initialRows: DtrRowValue[];
+  schedule: ResolvedSchedule;
+}) {
   const [rows, setRows] = useState(initialRows);
   const [pending, startTransition] = useTransition();
 
@@ -66,12 +84,19 @@ export function DtrForm({ employeeId, initialRows }: { employeeId: string; initi
     });
   }
 
-  const previews = rows.map(rowPreview);
+  const previews = rows.map((row) => rowPreview(row, schedule));
+  const hasSecondSession = !!schedule.session2;
   const totalCredit = previews.reduce((sum, p) => sum + p.dayCredit, 0);
   const totalLateMinutes = previews.reduce((sum, p) => sum + p.lateMinutes, 0);
 
   return (
     <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Schedule: {minutesToHHMM(schedule.session1.start)}–{minutesToHHMM(schedule.session1.end)}
+        {schedule.session2
+          ? ` & ${minutesToHHMM(schedule.session2.start)}–${minutesToHHMM(schedule.session2.end)}`
+          : " (single continuous session, no PM)"}
+      </p>
       <div className="overflow-x-auto rounded-lg border bg-white">
         <Table>
           <TableHeader>
@@ -115,7 +140,7 @@ export function DtrForm({ employeeId, initialRows }: { employeeId: string; initi
                     <Input
                       type="time"
                       className="w-28"
-                      disabled={timesDisabled}
+                      disabled={timesDisabled || !hasSecondSession}
                       value={row.pmArrival}
                       onChange={(e) => updateRow(i, { pmArrival: e.target.value })}
                     />
@@ -124,7 +149,7 @@ export function DtrForm({ employeeId, initialRows }: { employeeId: string; initi
                     <Input
                       type="time"
                       className="w-28"
-                      disabled={timesDisabled}
+                      disabled={timesDisabled || !hasSecondSession}
                       value={row.pmDeparture}
                       onChange={(e) => updateRow(i, { pmDeparture: e.target.value })}
                     />

@@ -6,7 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { parseISODate } from "@/lib/period";
-import { computeAttendanceFromTimes, combineDateAndTime, MANUAL_OVERRIDE_CODES } from "@/lib/dtr-time";
+import { computeAttendanceFromTimes, combineDateAndTime, resolveSchedule, MANUAL_OVERRIDE_CODES } from "@/lib/dtr-time";
 import type { AttendanceCode } from "@/generated/prisma/enums";
 
 const timeField = z.union([z.string().regex(/^\d{2}:\d{2}$/), z.literal("")]).optional();
@@ -41,6 +41,7 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
 
   const employee = await prisma.employee.findUnique({ where: { id: employeeId } });
   if (!employee) return { error: "Employee not found" };
+  const schedule = resolveSchedule(employee);
 
   await prisma.$transaction(
     rows.map((row) => {
@@ -64,7 +65,7 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
         amDeparture = row.amDeparture ? combineDateAndTime(row.date, row.amDeparture) : null;
         pmArrival = row.pmArrival ? combineDateAndTime(row.date, row.pmArrival) : null;
         pmDeparture = row.pmDeparture ? combineDateAndTime(row.date, row.pmDeparture) : null;
-        const computed = computeAttendanceFromTimes({ amArrival, amDeparture, pmArrival, pmDeparture });
+        const computed = computeAttendanceFromTimes({ amArrival, amDeparture, pmArrival, pmDeparture }, schedule);
         code = computed.code;
         dayCredit = computed.dayCredit;
         lateMinutes = computed.lateMinutes;

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getHalfMonthRange, formatISODate, type Half } from "@/lib/period";
-import { formatTimeHHMM, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
+import { formatTimeHHMM, resolveSchedule, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
 import { Button } from "@/components/ui/button";
 import { DtrFilters } from "./dtr-filters";
 import { DtrForm, type DtrRowValue } from "./dtr-form";
@@ -38,9 +38,11 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
 
   const { start, end, dates } = getHalfMonthRange(year, month, half);
 
-  const existingDays = await prisma.attendanceDay.findMany({
-    where: { employeeId, date: { gte: start, lte: end } },
-  });
+  const [selectedEmployee, existingDays] = await Promise.all([
+    prisma.employee.findUniqueOrThrow({ where: { id: employeeId } }),
+    prisma.attendanceDay.findMany({ where: { employeeId, date: { gte: start, lte: end } } }),
+  ]);
+  const schedule = resolveSchedule(selectedEmployee);
   const dayMap = new Map(existingDays.map((day) => [formatISODate(day.date), day]));
 
   const rows: DtrRowValue[] = dates.map((date) => {
@@ -74,7 +76,7 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
 
       <DtrFilters employees={employees} employeeId={employeeId} year={year} month={month} half={half} />
 
-      <DtrForm key={`${employeeId}-${year}-${month}-${half}`} employeeId={employeeId} initialRows={rows} />
+      <DtrForm key={`${employeeId}-${year}-${month}-${half}`} employeeId={employeeId} initialRows={rows} schedule={schedule} />
     </div>
   );
 }

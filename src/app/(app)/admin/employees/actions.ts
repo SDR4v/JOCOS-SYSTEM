@@ -5,6 +5,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
+import { hhmmToMinutes } from "@/lib/dtr-time";
 
 const employeeSchema = z.object({
   employeeNo: z.string().trim().min(1, "Employee No. is required"),
@@ -79,6 +80,49 @@ export async function createMemberLogin(_prev: FormState, formData: FormData): P
       passwordHash,
       role: "MEMBER",
       employeeId: parsed.data.employeeId,
+    },
+  });
+
+  revalidatePath("/admin/employees");
+  return { error: null };
+}
+
+const scheduleSchema = z
+  .object({
+    employeeId: z.string().min(1),
+    scheduleMode: z.enum(["STANDARD", "CUSTOM"]),
+    session1Start: z.string().optional(),
+    session1End: z.string().optional(),
+    hasSession2: z.boolean(),
+    session2Start: z.string().optional(),
+    session2End: z.string().optional(),
+  })
+  .refine((v) => v.scheduleMode !== "CUSTOM" || (v.session1Start && v.session1End), {
+    message: "Session 1 start and end are required for a custom schedule",
+  })
+  .refine((v) => v.scheduleMode !== "CUSTOM" || !v.hasSession2 || (v.session2Start && v.session2End), {
+    message: "Session 2 start and end are required when a second session is set",
+  });
+
+export async function updateEmployeeSchedule(input: unknown): Promise<FormState> {
+  await requireAdmin();
+
+  const parsed = scheduleSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const { employeeId, scheduleMode, session1Start, session1End, hasSession2, session2Start, session2End } = parsed.data;
+  const isCustom = scheduleMode === "CUSTOM";
+
+  await prisma.employee.update({
+    where: { id: employeeId },
+    data: {
+      scheduleMode,
+      session1Start: isCustom ? hhmmToMinutes(session1Start!) : null,
+      session1End: isCustom ? hhmmToMinutes(session1End!) : null,
+      session2Start: isCustom && hasSession2 ? hhmmToMinutes(session2Start!) : null,
+      session2End: isCustom && hasSession2 ? hhmmToMinutes(session2End!) : null,
     },
   });
 

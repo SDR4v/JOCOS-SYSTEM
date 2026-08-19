@@ -15,7 +15,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { formatDisplayDate } from "@/lib/period";
-import { computeAttendanceFromTimes, combineDateAndTime, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
+import {
+  computeAttendanceFromTimes,
+  combineDateAndTime,
+  minutesToHHMM,
+  MANUAL_OVERRIDE_CODES,
+  type ManualOverrideCode,
+  type ResolvedSchedule,
+} from "@/lib/dtr-time";
 import { submitDtrEntries } from "./actions";
 
 export type MyDtrRow = {
@@ -41,21 +48,24 @@ function fieldsEqual(a: MyDtrRow, b: MyDtrRow) {
   );
 }
 
-function rowPreview(row: MyDtrRow) {
+function rowPreview(row: MyDtrRow, schedule: ResolvedSchedule) {
   if (row.overrideCode) {
     const meta = ATTENDANCE_CODE_MAP[row.overrideCode];
     return meta.shortLabel;
   }
-  const computed = computeAttendanceFromTimes({
-    amArrival: row.amArrival ? combineDateAndTime(row.date, row.amArrival) : null,
-    amDeparture: row.amDeparture ? combineDateAndTime(row.date, row.amDeparture) : null,
-    pmArrival: row.pmArrival ? combineDateAndTime(row.date, row.pmArrival) : null,
-    pmDeparture: row.pmDeparture ? combineDateAndTime(row.date, row.pmDeparture) : null,
-  });
+  const computed = computeAttendanceFromTimes(
+    {
+      amArrival: row.amArrival ? combineDateAndTime(row.date, row.amArrival) : null,
+      amDeparture: row.amDeparture ? combineDateAndTime(row.date, row.amDeparture) : null,
+      pmArrival: row.pmArrival ? combineDateAndTime(row.date, row.pmArrival) : null,
+      pmDeparture: row.pmDeparture ? combineDateAndTime(row.date, row.pmDeparture) : null,
+    },
+    schedule,
+  );
   return computed.code === "LATE" ? String(computed.lateMinutes) : ATTENDANCE_CODE_MAP[computed.code].shortLabel;
 }
 
-export function MyDtrForm({ initialRows }: { initialRows: MyDtrRow[] }) {
+export function MyDtrForm({ initialRows, schedule }: { initialRows: MyDtrRow[]; schedule: ResolvedSchedule }) {
   const [rows, setRows] = useState(initialRows);
   const [pending, startTransition] = useTransition();
 
@@ -91,8 +101,16 @@ export function MyDtrForm({ initialRows }: { initialRows: MyDtrRow[] }) {
     });
   }
 
+  const hasSecondSession = !!schedule.session2;
+
   return (
     <div className="space-y-4">
+      <p className="text-sm text-muted-foreground">
+        Your schedule: {minutesToHHMM(schedule.session1.start)}–{minutesToHHMM(schedule.session1.end)}
+        {schedule.session2
+          ? ` & ${minutesToHHMM(schedule.session2.start)}–${minutesToHHMM(schedule.session2.end)}`
+          : " (single continuous session, no PM)"}
+      </p>
       <div className="overflow-x-auto rounded-lg border bg-white">
         <Table>
           <TableHeader>
@@ -138,7 +156,7 @@ export function MyDtrForm({ initialRows }: { initialRows: MyDtrRow[] }) {
                     <Input
                       type="time"
                       className="w-28"
-                      disabled={timesDisabled}
+                      disabled={timesDisabled || !hasSecondSession}
                       value={row.pmArrival}
                       onChange={(e) => updateRow(i, { pmArrival: e.target.value })}
                     />
@@ -147,7 +165,7 @@ export function MyDtrForm({ initialRows }: { initialRows: MyDtrRow[] }) {
                     <Input
                       type="time"
                       className="w-28"
-                      disabled={timesDisabled}
+                      disabled={timesDisabled || !hasSecondSession}
                       value={row.pmDeparture}
                       onChange={(e) => updateRow(i, { pmDeparture: e.target.value })}
                     />
@@ -172,7 +190,7 @@ export function MyDtrForm({ initialRows }: { initialRows: MyDtrRow[] }) {
                       </SelectContent>
                     </Select>
                   </TableCell>
-                  <TableCell className="text-sm font-medium">{rowPreview(row)}</TableCell>
+                  <TableCell className="text-sm font-medium">{rowPreview(row, schedule)}</TableCell>
                   <TableCell>
                     <Input
                       className="w-40"

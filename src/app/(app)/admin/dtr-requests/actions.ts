@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
-import { computeAttendanceFromTimes } from "@/lib/dtr-time";
+import { computeAttendanceFromTimes, resolveSchedule } from "@/lib/dtr-time";
 import type { AttendanceCode } from "@/generated/prisma/enums";
 
 export type FormState = { error: string | null };
@@ -16,6 +16,9 @@ export async function approveDtrEntryRequest(id: string): Promise<FormState> {
   if (!request) return { error: "Request not found" };
   if (request.status !== "PENDING") return { error: "This request has already been resolved" };
 
+  const employee = await prisma.employee.findUnique({ where: { id: request.employeeId } });
+  if (!employee) return { error: "Employee not found" };
+
   let code: AttendanceCode;
   let dayCredit: number;
   let lateMinutes: number;
@@ -26,12 +29,15 @@ export async function approveDtrEntryRequest(id: string): Promise<FormState> {
     dayCredit = meta.defaultDayCredit;
     lateMinutes = 0;
   } else {
-    const computed = computeAttendanceFromTimes({
-      amArrival: request.amArrival,
-      amDeparture: request.amDeparture,
-      pmArrival: request.pmArrival,
-      pmDeparture: request.pmDeparture,
-    });
+    const computed = computeAttendanceFromTimes(
+      {
+        amArrival: request.amArrival,
+        amDeparture: request.amDeparture,
+        pmArrival: request.pmArrival,
+        pmDeparture: request.pmDeparture,
+      },
+      resolveSchedule(employee),
+    );
     code = computed.code;
     dayCredit = computed.dayCredit;
     lateMinutes = computed.lateMinutes;

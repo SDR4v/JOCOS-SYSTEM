@@ -2,7 +2,7 @@ import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatISODate } from "@/lib/period";
-import { formatTimeHHMM, previewRequestCode, type ManualOverrideCode } from "@/lib/dtr-time";
+import { formatTimeHHMM, previewRequestCode, resolveSchedule, type ManualOverrideCode } from "@/lib/dtr-time";
 import { ApproveRejectButtons } from "./request-actions";
 import { HistoryTable } from "./history-table";
 
@@ -63,7 +63,10 @@ export default async function DtrRequestsPage() {
                         : `${request.pmArrival ? formatTimeHHMM(request.pmArrival) : "—"}–${request.pmDeparture ? formatTimeHHMM(request.pmDeparture) : "—"}`}
                     </TableCell>
                     <TableCell className="text-sm font-medium">
-                      {previewRequestCode({ ...request, overrideCode: request.overrideCode as ManualOverrideCode | null })}
+                      {previewRequestCode(
+                        { ...request, overrideCode: request.overrideCode as ManualOverrideCode | null },
+                        resolveSchedule(request.employee),
+                      )}
                     </TableCell>
                     <TableCell className="text-sm text-muted-foreground">{request.notes ?? ""}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">
@@ -95,6 +98,7 @@ export default async function DtrRequestsPage() {
               notes: r.notes,
               status: r.status as "APPROVED" | "REJECTED",
               employee: { name: r.employee.name },
+              schedule: resolveSchedule(r.employee),
             }))}
           />
         </div>

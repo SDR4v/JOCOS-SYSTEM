@@ -6,7 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatISODate } from "@/lib/period";
-import { formatTimeHHMM, previewRequestCode, type ManualOverrideCode } from "@/lib/dtr-time";
+import { formatTimeHHMM, previewRequestCode, type ManualOverrideCode, type ResolvedSchedule } from "@/lib/dtr-time";
 
 type ResolvedStatus = "APPROVED" | "REJECTED";
 
@@ -21,6 +21,7 @@ type ResolvedRequest = {
   notes: string | null;
   status: ResolvedStatus;
   employee: { name: string };
+  schedule: ResolvedSchedule;
 };
 
 type StatusFilter = "ALL" | ResolvedStatus;
@@ -107,7 +108,7 @@ export function HistoryTable({ requests }: { requests: ResolvedRequest[] }) {
                     ? "—"
                     : `${request.pmArrival ? formatTimeHHMM(request.pmArrival) : "—"}–${request.pmDeparture ? formatTimeHHMM(request.pmDeparture) : "—"}`}
                 </TableCell>
-                <TableCell className="text-sm font-medium">{previewRequestCode(request)}</TableCell>
+                <TableCell className="text-sm font-medium">{previewRequestCode(request, request.schedule)}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{request.notes ?? ""}</TableCell>
                 <TableCell>
                   <Badge variant={request.status === "APPROVED" ? "default" : "destructive"}>{request.status}</Badge>

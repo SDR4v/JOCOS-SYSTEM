@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { computePayroll } from "@/lib/payroll";
 import { displayCodeForDay } from "@/lib/attendance-codes";
 import { getHalfMonthRange, formatISODate, halfLabel, type Half } from "@/lib/period";
-import { formatTimeHHMM, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
+import { formatTimeHHMM, resolveSchedule, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
 import { MyDtrFilters } from "./my-dtr-filters";
 import { MyDtrForm, type MyDtrRow } from "./my-dtr-form";
+import { MyScheduleDialog } from "./my-schedule-dialog";
 
 const MANUAL_OVERRIDE_SET = new Set<string>(MANUAL_OVERRIDE_CODES);
 
@@ -33,6 +34,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
   const half: Half = Number(params.half) === 2 ? 2 : 1;
 
   const employee = await prisma.employee.findUniqueOrThrow({ where: { id: user.employeeId } });
+  const schedule = resolveSchedule(employee);
   const { start, end, dates } = getHalfMonthRange(year, month, half);
 
   const [days, requests, rate] = await Promise.all([
@@ -90,11 +92,14 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
             {employee.name} &middot; SG {employee.salaryGrade} &middot; {employee.officeAssignment}
           </p>
         </div>
-        <Link href={`/dtr/${employee.id}/${year}/${month}/print`}>
-          <Button type="button" variant="outline">
-            Print DTR (Form 48)
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          <MyScheduleDialog employee={employee} />
+          <Link href={`/dtr/${employee.id}/${year}/${month}/print`}>
+            <Button type="button" variant="outline">
+              Print DTR (Form 48)
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <MyDtrFilters year={year} month={month} half={half} />
@@ -114,7 +119,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
         </CardContent>
       </Card>
 
-      <MyDtrForm key={`${year}-${month}-${half}`} initialRows={rows} />
+      <MyDtrForm key={`${year}-${month}-${half}`} initialRows={rows} schedule={schedule} />
     </div>
   );
 }
