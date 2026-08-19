@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Printer } from "lucide-react";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getHalfMonthRange, formatISODate, type Half } from "@/lib/period";
@@ -68,6 +69,7 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
         </div>
         <Link href={`/dtr/${employeeId}/${year}/${month}/print`}>
           <Button type="button" variant="outline">
+            <Printer />
             Print DTR (Form 48)
           </Button>
         </Link>

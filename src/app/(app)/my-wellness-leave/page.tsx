@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Printer } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -71,7 +72,7 @@ export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/
         </div>
       )}
 
-      <div className="rounded-lg border bg-white">
+      <div className="rounded-lg border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -113,6 +114,7 @@ export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/
                 <TableCell className="text-right">
                   <Link href={`/wellness-leave/${request.id}/print`}>
                     <Button type="button" variant="outline" size="sm">
+                      <Printer />
                       Print
                     </Button>
                   </Link>
@@ -142,17 +144,17 @@ function SemesterCard({
       <CardContent className="grid grid-cols-3 gap-4">
         <Stat label="Allotted" value={balance ? String(balance.allotted) : "—"} />
         <Stat label="Used" value={balance ? String(balance.used) : "—"} />
-        <Stat label="Remaining" value={remaining !== null ? String(remaining) : "—"} />
+        <Stat label="Remaining" value={remaining !== null ? String(remaining) : "—"} highlight />
       </CardContent>
     </Card>
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div>
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold">{value}</div>
+      <div className={highlight ? "text-lg font-semibold text-primary" : "text-lg font-semibold"}>{value}</div>
     </div>
   );
 }

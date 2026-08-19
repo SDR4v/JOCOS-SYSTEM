@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Search, Printer } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -40,12 +41,15 @@ export function RequestHistoryTable({ requests }: { requests: ResolvedRequest[] 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <Input
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search request history by employee name..."
-          className="max-w-sm"
-        />
+        <div className="relative max-w-sm flex-1">
+          <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search request history by employee name..."
+            className="pl-8"
+          />
+        </div>
         <div className="flex gap-2">
           <Button type="button" variant={status === "ALL" ? "default" : "outline"} size="sm" onClick={() => setStatus("ALL")}>
             All
@@ -69,7 +73,7 @@ export function RequestHistoryTable({ requests }: { requests: ResolvedRequest[] 
         </div>
       </div>
 
-      <div className="rounded-lg border bg-white">
+      <div className="rounded-lg border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -103,6 +107,7 @@ export function RequestHistoryTable({ requests }: { requests: ResolvedRequest[] 
                 <TableCell className="text-right">
                   <Link href={`/wellness-leave/${request.id}/print`}>
                     <Button type="button" variant="outline" size="sm">
+                      <Printer />
                       Print
                     </Button>
                   </Link>

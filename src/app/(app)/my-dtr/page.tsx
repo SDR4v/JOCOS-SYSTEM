@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Printer } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -98,6 +99,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
           <MyScheduleDialog employee={employee} />
           <Link href={`/dtr/${employee.id}/${year}/${month}/print`}>
             <Button type="button" variant="outline">
+              <Printer />
               Print DTR (Form 48)
             </Button>
           </Link>
@@ -117,7 +119,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
           <Stat label="Days Rendered" value={totals.totalDaysRendered.toFixed(1)} />
           <Stat label="Gross Amount" value={peso(totals.grossAmount)} />
           <Stat label="Deduction" value={peso(totals.deduction)} />
-          <Stat label="Net Amount" value={peso(totals.netAmount)} />
+          <Stat label="Net Amount" value={peso(totals.netAmount)} highlight />
         </CardContent>
       </Card>
 
@@ -126,11 +128,11 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
   return (
     <div>
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className="text-lg font-semibold">{value}</div>
+      <div className={highlight ? "text-lg font-semibold text-primary" : "text-lg font-semibold"}>{value}</div>
     </div>
   );
 }

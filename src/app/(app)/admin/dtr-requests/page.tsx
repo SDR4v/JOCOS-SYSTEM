@@ -1,3 +1,4 @@
+import { Inbox } from "lucide-react";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -27,13 +28,21 @@ export default async function DtrRequestsPage() {
       </div>
 
       <div className="space-y-2">
-        <h2 className="text-sm font-semibold text-muted-foreground">
-          Pending {pendingRequests.length > 0 && `(${pendingRequests.length})`}
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+          Pending
+          {pendingRequests.length > 0 && (
+            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-gold/15 px-1.5 text-xs font-semibold text-brand-gold">
+              {pendingRequests.length}
+            </span>
+          )}
         </h2>
         {pendingRequests.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No pending DTR entries to review.</p>
+          <div className="flex flex-col items-center gap-2 rounded-lg border bg-card py-10 text-center shadow-sm">
+            <Inbox className="size-8 text-muted-foreground/50" />
+            <p className="text-sm text-muted-foreground">No pending DTR entries to review.</p>
+          </div>
         ) : (
-          <div className="overflow-x-auto rounded-lg border bg-white">
+          <div className="overflow-x-auto rounded-lg border bg-card shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow>

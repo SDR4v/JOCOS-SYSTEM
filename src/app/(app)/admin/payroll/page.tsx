@@ -90,7 +90,7 @@ export default async function PayrollPage({ searchParams }: PageProps<"/admin/pa
       {Array.from(groups.entries()).map(([office, groupRows]) => (
         <div key={office} className="space-y-2">
           <h2 className="text-sm font-semibold text-muted-foreground">{office}</h2>
-          <div className="rounded-lg border bg-white">
+          <div className="rounded-lg border bg-card shadow-sm">
             <Table>
               <TableHeader>
                 <TableRow>
@@ -127,16 +127,16 @@ export default async function PayrollPage({ searchParams }: PageProps<"/admin/pa
       ))}
 
       {rows.length > 0 && (
-        <div className="rounded-lg border bg-white">
+        <div className="rounded-lg border border-primary/30 bg-primary/5 shadow-sm">
           <Table>
             <TableBody>
-              <TableRow>
+              <TableRow className="hover:bg-transparent">
                 <TableCell className="font-semibold">Grand Total</TableCell>
                 <TableCell />
                 <TableCell className="text-right font-semibold">{grandTotal.totalDaysRendered.toFixed(1)}</TableCell>
                 <TableCell className="text-right font-semibold">{peso(grandTotal.grossAmount)}</TableCell>
                 <TableCell className="text-right font-semibold">{peso(grandTotal.deduction)}</TableCell>
-                <TableCell className="text-right font-semibold">{peso(grandTotal.netAmount)}</TableCell>
+                <TableCell className="text-right font-semibold text-primary">{peso(grandTotal.netAmount)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>

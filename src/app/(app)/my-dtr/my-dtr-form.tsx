@@ -113,7 +113,7 @@ export function MyDtrForm({
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+      <p className="rounded-md bg-muted/60 px-3 py-2 text-sm text-muted-foreground">
         {employeeSchedule.scheduleMode === "PER_DAY"
           ? "Your schedule varies by day of week — hover a row's date for that day's hours."
           : `Your schedule: ${minutesToHHMM(schedules[0].session1.start)}–${minutesToHHMM(schedules[0].session1.end)}${
@@ -122,7 +122,7 @@ export function MyDtrForm({
                 : " (single continuous session, no PM)"
             }`}
       </p>
-      <div className="overflow-x-auto rounded-lg border bg-white">
+      <div className="overflow-x-auto rounded-lg border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -227,7 +227,7 @@ export function MyDtrForm({
         </Table>
       </div>
 
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between rounded-lg border bg-card px-4 py-3 shadow-sm">
         <p className="text-xs text-muted-foreground">
           Changes are submitted to HR for review — they won&apos;t affect your DTR or pay until approved.
         </p>

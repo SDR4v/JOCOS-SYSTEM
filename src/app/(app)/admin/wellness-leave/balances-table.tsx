@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
+import { Search, Printer } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,14 +29,17 @@ export function BalancesTable({
 
   return (
     <div className="space-y-3">
-      <Input
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        placeholder="Search employees by name or office..."
-        className="max-w-sm"
-      />
+      <div className="relative max-w-sm">
+        <Search className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search employees by name or office..."
+          className="pl-8"
+        />
+      </div>
 
-      <div className="rounded-lg border bg-white">
+      <div className="rounded-lg border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>
@@ -68,6 +72,7 @@ export function BalancesTable({
                   <TableCell className="text-right">
                     <Link href={`/wellness-leave/blank/${employee.id}/print`}>
                       <Button type="button" variant="outline" size="sm">
+                        <Printer />
                         Print
                       </Button>
                     </Link>

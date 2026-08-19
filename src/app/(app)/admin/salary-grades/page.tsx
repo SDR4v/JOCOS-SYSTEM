@@ -42,7 +42,7 @@ export default async function SalaryGradesPage({ searchParams }: PageProps<"/adm
         ))}
       </div>
 
-      <div className="rounded-lg border bg-white">
+      <div className="rounded-lg border bg-card shadow-sm">
         <Table>
           <TableHeader>
             <TableRow>

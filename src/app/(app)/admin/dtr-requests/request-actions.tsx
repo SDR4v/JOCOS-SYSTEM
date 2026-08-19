@@ -2,6 +2,7 @@
 
 import { useTransition } from "react";
 import { toast } from "sonner";
+import { Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { approveDtrEntryRequest, rejectDtrEntryRequest } from "./actions";
 
@@ -27,9 +28,11 @@ export function ApproveRejectButtons({ id }: { id: string }) {
   return (
     <div className="flex justify-end gap-2">
       <Button type="button" size="sm" disabled={pending} onClick={approve}>
+        <Check />
         Approve
       </Button>
       <Button type="button" variant="outline" size="sm" disabled={pending} onClick={reject}>
+        <X />
         Reject
       </Button>
     </div>
