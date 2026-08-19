@@ -103,7 +103,7 @@ export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/
                       request.status === "APPROVED"
                         ? "default"
                         : request.status === "REJECTED"
-                          ? "secondary"
+                          ? "destructive"
                           : "outline"
                     }
                   >
