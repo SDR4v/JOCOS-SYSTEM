@@ -10,15 +10,15 @@ export default async function LoginPage({
   const callbackUrl = typeof callbackUrlRaw === "string" ? callbackUrlRaw : "/";
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-neutral-50 px-4">
-      <Card className="w-full max-w-sm">
+    <div className="flex min-h-screen items-center justify-center bg-gradient-to-b from-primary/5 via-background to-brand-gold/5 px-4">
+      <Card className="w-full max-w-sm shadow-lg">
         <CardHeader className="items-center text-center">
           <Image
             src="/batac-seal.jpg"
             alt="City of Batac Official Seal"
-            width={72}
-            height={72}
-            className="mb-1 rounded-full"
+            width={80}
+            height={80}
+            className="mb-1 rounded-full shadow-sm"
             priority
           />
           <CardTitle className="text-xl">JOCOS Attendance &amp; Payroll</CardTitle>
