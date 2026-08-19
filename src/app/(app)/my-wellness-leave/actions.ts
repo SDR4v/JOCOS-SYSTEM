@@ -115,8 +115,10 @@ export async function pullOutMyWellnessLeaveRequest(id: string): Promise<FormSta
   if (!request) return { error: "Request not found" };
   if (request.employeeId !== user.employeeId) return { error: "This isn't your request" };
   if (request.status === "CANCELLED") return { error: "This request has already been pulled out" };
-  if (!canPullOutWellnessLeave(request.status, request.endDate)) {
-    return { error: "This Wellness Leave has already taken place and can no longer be pulled out" };
+  if (!canPullOutWellnessLeave(request.status, request.endDate, request.confirmedTakenAt)) {
+    return request.confirmedTakenAt
+      ? { error: "HR has already confirmed this Wellness Leave as taken and it can no longer be pulled out" }
+      : { error: "This Wellness Leave has already taken place and can no longer be pulled out" };
   }
 
   const semester = getSemester(request.startDate);

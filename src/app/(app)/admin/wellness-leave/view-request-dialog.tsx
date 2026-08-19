@@ -24,6 +24,8 @@ export type WellnessLeaveRequestDetails = {
   filedAtLabel: string;
   pulledOutByLabel?: string | null;
   pulledOutAtLabel?: string | null;
+  confirmedTakenByLabel?: string | null;
+  confirmedTakenAtLabel?: string | null;
 };
 
 export function ViewWellnessLeaveRequestDialog({ request }: { request: WellnessLeaveRequestDetails }) {
@@ -69,6 +71,14 @@ export function ViewWellnessLeaveRequestDialog({ request }: { request: WellnessL
             <DetailField
               label="Pulled out by"
               value={`${request.pulledOutByLabel}${request.pulledOutAtLabel ? ` · ${request.pulledOutAtLabel}` : ""}`}
+              full
+            />
+          )}
+
+          {request.confirmedTakenByLabel && (
+            <DetailField
+              label="Confirmed taken (physical copy received) by"
+              value={`${request.confirmedTakenByLabel}${request.confirmedTakenAtLabel ? ` · ${request.confirmedTakenAtLabel}` : ""}`}
               full
             />
           )}

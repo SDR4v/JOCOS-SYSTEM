@@ -13,7 +13,7 @@ export default async function WellnessLeavePrintPage({ params }: PageProps<"/wel
 
   const request = await prisma.wellnessLeaveRequest.findUnique({
     where: { id },
-    include: { employee: true, requestedBy: true, cancelledBy: true },
+    include: { employee: true, requestedBy: true, cancelledBy: true, confirmedTakenBy: true },
   });
   if (!request) notFound();
   if (user.role !== "ADMIN" && request.employeeId !== user.employeeId) notFound();
@@ -59,9 +59,11 @@ export default async function WellnessLeavePrintPage({ params }: PageProps<"/wel
         lessSem1Label={semester === 1 ? String(request.daysCount) : "-"}
         lessSem2Label={semester === 2 ? String(request.daysCount) : "-"}
         filedByLabel={request.requestedBy.username}
-        displayStatus={wellnessLeaveDisplayStatus(request.status, request.endDate)}
+        displayStatus={wellnessLeaveDisplayStatus(request.status, request.endDate, request.confirmedTakenAt)}
         pulledOutByLabel={request.cancelledBy?.username ?? null}
         pulledOutAtLabel={request.cancelledAt ? formatISODate(request.cancelledAt) : null}
+        confirmedTakenByLabel={request.confirmedTakenBy?.username ?? null}
+        confirmedTakenAtLabel={request.confirmedTakenAt ? formatISODate(request.confirmedTakenAt) : null}
       />
     </div>
   );

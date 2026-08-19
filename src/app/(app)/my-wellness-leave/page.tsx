@@ -124,12 +124,22 @@ export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/
                 <TableCell>{request.daysCount}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{request.notes ?? ""}</TableCell>
                 <TableCell>
-                  <Badge variant={STATUS_BADGE_VARIANT[wellnessLeaveDisplayStatus(request.status, request.endDate)]}>
-                    {wellnessLeaveDisplayStatusLabel(wellnessLeaveDisplayStatus(request.status, request.endDate))}
+                  <Badge
+                    variant={
+                      STATUS_BADGE_VARIANT[
+                        wellnessLeaveDisplayStatus(request.status, request.endDate, request.confirmedTakenAt)
+                      ]
+                    }
+                  >
+                    {wellnessLeaveDisplayStatusLabel(
+                      wellnessLeaveDisplayStatus(request.status, request.endDate, request.confirmedTakenAt),
+                    )}
                   </Badge>
                 </TableCell>
                 <TableCell className="flex justify-end gap-2">
-                  {canPullOutWellnessLeave(request.status, request.endDate) && <PullOutButton id={request.id} />}
+                  {canPullOutWellnessLeave(request.status, request.endDate, request.confirmedTakenAt) && (
+                    <PullOutButton id={request.id} />
+                  )}
                   <Link href={`/wellness-leave/${request.id}/print`}>
                     <Button type="button" variant="outline" size="sm">
                       <Printer />

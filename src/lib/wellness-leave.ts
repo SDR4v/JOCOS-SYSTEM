@@ -17,14 +17,18 @@ export function semesterLabel(semester: Semester): string {
 
 // No admin approval gate: a filed request takes effect immediately. What's
 // worth tracking instead is whether it has already happened, is still
-// coming up, or was pulled back out before it happened.
+// coming up, or was pulled back out before it happened. An admin can also
+// lock a request to TAKEN early (confirmedTakenAt) once they've physically
+// received the employee's paper application confirming it happened.
 export type WellnessLeaveDisplayStatus = "UPCOMING" | "TAKEN" | "CANCELLED";
 
 export function wellnessLeaveDisplayStatus(
   status: "ACTIVE" | "CANCELLED",
   endDate: Date,
+  confirmedTakenAt?: Date | null,
 ): WellnessLeaveDisplayStatus {
   if (status === "CANCELLED") return "CANCELLED";
+  if (confirmedTakenAt) return "TAKEN";
   const now = new Date();
   const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   return endDate < today ? "TAKEN" : "UPCOMING";
@@ -41,6 +45,10 @@ export function wellnessLeaveDisplayStatusLabel(status: WellnessLeaveDisplayStat
   }
 }
 
-export function canPullOutWellnessLeave(status: "ACTIVE" | "CANCELLED", endDate: Date): boolean {
-  return wellnessLeaveDisplayStatus(status, endDate) === "UPCOMING";
+export function canPullOutWellnessLeave(
+  status: "ACTIVE" | "CANCELLED",
+  endDate: Date,
+  confirmedTakenAt?: Date | null,
+): boolean {
+  return wellnessLeaveDisplayStatus(status, endDate, confirmedTakenAt) === "UPCOMING";
 }

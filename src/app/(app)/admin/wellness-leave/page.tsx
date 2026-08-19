@@ -23,7 +23,7 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
     prisma.wellnessLeaveBalance.findMany({ where: { year } }),
     prisma.wellnessLeaveRequest.findMany({
       where: { startDate: { gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) } },
-      include: { employee: true, cancelledBy: true },
+      include: { employee: true, cancelledBy: true, confirmedTakenBy: true },
       orderBy: { startDate: "desc" },
     }),
   ]);
@@ -74,6 +74,8 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
                 createdAt: r.createdAt,
                 cancelledByName: r.cancelledBy?.username ?? null,
                 cancelledAt: r.cancelledAt,
+                confirmedTakenByName: r.confirmedTakenBy?.username ?? null,
+                confirmedTakenAt: r.confirmedTakenAt,
               }))}
             />
           )}

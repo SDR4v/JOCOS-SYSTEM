@@ -29,6 +29,7 @@ model User {
   editedAttendanceDays AttendanceDay[]        @relation("AttendanceDayEditor")
   requestedLeaves      WellnessLeaveRequest[] @relation("LeaveRequester")
   cancelledLeaves      WellnessLeaveRequest[] @relation("LeaveCanceller")
+  confirmedTakenLeaves WellnessLeaveRequest[] @relation("LeaveTakenConfirmer")
   enteredTripAuths     TripAuthorization[]    @relation("TripAuthEnteredBy")
   biometricUploads     BiometricUpload[]      @relation("BiometricUploader")
   reviewedDtrRequests  DtrEntryRequest[]      @relation("DtrRequestReviewer")
@@ -235,6 +236,13 @@ model WellnessLeaveRequest {
   cancelledById String?
   cancelledBy   User?    @relation("LeaveCanceller", fields: [cancelledById], references: [id])
   cancelledAt   DateTime?
+
+  // Set when an admin has physically received the employee's paper
+  // application and confirms the leave was taken — locks the display
+  // status to TAKEN early (ahead of endDate) and blocks a pull-out.
+  confirmedTakenById String?
+  confirmedTakenBy   User?     @relation("LeaveTakenConfirmer", fields: [confirmedTakenById], references: [id])
+  confirmedTakenAt   DateTime?
 
   createdAt DateTime @default(now())
 }

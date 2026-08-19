@@ -24,6 +24,8 @@ export type WellnessLeaveApplicationFormProps = {
   displayStatus: "UPCOMING" | "TAKEN" | "CANCELLED" | null;
   pulledOutByLabel?: string | null;
   pulledOutAtLabel?: string | null;
+  confirmedTakenByLabel?: string | null;
+  confirmedTakenAtLabel?: string | null;
 };
 
 export function WellnessLeaveApplicationForm({
@@ -44,6 +46,8 @@ export function WellnessLeaveApplicationForm({
   displayStatus,
   pulledOutByLabel,
   pulledOutAtLabel,
+  confirmedTakenByLabel,
+  confirmedTakenAtLabel,
 }: WellnessLeaveApplicationFormProps) {
   return (
     <div className="mx-auto max-w-3xl bg-white p-8 text-[13px] text-black print:m-0 print:max-w-none print:p-0">
@@ -149,12 +153,18 @@ export function WellnessLeaveApplicationForm({
           <div className="w-1/2 p-2">
             <p className="mb-2 font-bold">7.B STATUS</p>
             <p>{displayStatus === "UPCOMING" ? "☑" : "☐"} Upcoming — not yet taken</p>
-            <p>{displayStatus === "TAKEN" ? "☑" : "☐"} Taken — leave period has passed</p>
+            <p>{displayStatus === "TAKEN" ? "☑" : "☐"} Taken — leave period has passed or was confirmed received</p>
             <p>{displayStatus === "CANCELLED" ? "☑" : "☐"} Pulled out by the employee before it was taken</p>
             {displayStatus === "CANCELLED" && pulledOutByLabel && (
               <p className="mt-2 text-xs">
                 Pulled out by {pulledOutByLabel}
                 {pulledOutAtLabel ? ` on ${pulledOutAtLabel}` : ""}
+              </p>
+            )}
+            {displayStatus === "TAKEN" && confirmedTakenByLabel && (
+              <p className="mt-2 text-xs">
+                Physical copy confirmed received by {confirmedTakenByLabel}
+                {confirmedTakenAtLabel ? ` on ${confirmedTakenAtLabel}` : ""}
               </p>
             )}
           </div>

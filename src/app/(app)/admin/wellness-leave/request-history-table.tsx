@@ -16,6 +16,7 @@ import {
   type WellnessLeaveDisplayStatus,
 } from "@/lib/wellness-leave";
 import { ViewWellnessLeaveRequestDialog } from "./view-request-dialog";
+import { MarkTakenButton } from "./mark-taken-button";
 
 type RequestStatus = "ACTIVE" | "CANCELLED";
 
@@ -30,6 +31,8 @@ type WellnessLeaveRequestRow = {
   createdAt: Date;
   cancelledByName: string | null;
   cancelledAt: Date | null;
+  confirmedTakenByName: string | null;
+  confirmedTakenAt: Date | null;
 };
 
 type StatusFilter = "ALL" | WellnessLeaveDisplayStatus;
@@ -45,7 +48,11 @@ export function RequestHistoryTable({ requests }: { requests: WellnessLeaveReque
   const [status, setStatus] = useState<StatusFilter>("ALL");
 
   const rows = useMemo(
-    () => requests.map((r) => ({ ...r, displayStatus: wellnessLeaveDisplayStatus(r.status, r.endDate) })),
+    () =>
+      requests.map((r) => ({
+        ...r,
+        displayStatus: wellnessLeaveDisplayStatus(r.status, r.endDate, r.confirmedTakenAt),
+      })),
     [requests],
   );
 
@@ -154,8 +161,11 @@ export function RequestHistoryTable({ requests }: { requests: WellnessLeaveReque
                       filedAtLabel: formatISODate(request.createdAt),
                       pulledOutByLabel: request.cancelledByName,
                       pulledOutAtLabel: request.cancelledAt ? formatISODate(request.cancelledAt) : null,
+                      confirmedTakenByLabel: request.confirmedTakenByName,
+                      confirmedTakenAtLabel: request.confirmedTakenAt ? formatISODate(request.confirmedTakenAt) : null,
                     }}
                   />
+                  {request.displayStatus === "UPCOMING" && <MarkTakenButton id={request.id} />}
                   <Link href={`/wellness-leave/${request.id}/print`}>
                     <Button type="button" variant="outline" size="sm">
                       <Printer />
