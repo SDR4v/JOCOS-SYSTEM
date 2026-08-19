@@ -119,6 +119,7 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
                   <TableHead className="text-right">1st Sem Remaining</TableHead>
                   <TableHead className="text-right">2nd Sem Used</TableHead>
                   <TableHead className="text-right">2nd Sem Remaining</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -132,6 +133,13 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
                       <TableCell className="text-right">{sem1 ? sem1.allotted - sem1.used : "—"}</TableCell>
                       <TableCell className="text-right">{sem2 ? sem2.used : "—"}</TableCell>
                       <TableCell className="text-right">{sem2 ? sem2.allotted - sem2.used : "—"}</TableCell>
+                      <TableCell className="text-right">
+                        <Link href={`/wellness-leave/blank/${employee.id}/print`}>
+                          <Button type="button" variant="outline" size="sm">
+                            Print
+                          </Button>
+                        </Link>
+                      </TableCell>
                     </TableRow>
                   );
                 })}
