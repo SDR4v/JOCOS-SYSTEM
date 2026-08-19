@@ -13,13 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { EmployeeCombobox, type EmployeeOption } from "@/components/employee-combobox";
 import {
   createWellnessLeaveRequest,
   approveWellnessLeaveRequest,
@@ -28,8 +22,6 @@ import {
 } from "./actions";
 
 const initialState: FormState = { error: null };
-
-type EmployeeOption = { id: string; name: string; officeAssignment: string };
 
 export function NewWellnessLeaveRequestDialog({ employees }: { employees: EmployeeOption[] }) {
   const [open, setOpen] = useState(false);
@@ -59,18 +51,14 @@ export function NewWellnessLeaveRequestDialog({ employees }: { employees: Employ
           <input type="hidden" name="employeeId" value={employeeId} />
           <div className="space-y-1.5">
             <Label htmlFor="employeeId">Employee</Label>
-            <Select value={employeeId} onValueChange={(value) => setEmployeeId(value as string)}>
-              <SelectTrigger id="employeeId" className="w-full">
-                <SelectValue placeholder="Select employee" />
-              </SelectTrigger>
-              <SelectContent>
-                {employees.map((employee) => (
-                  <SelectItem key={employee.id} value={employee.id}>
-                    {employee.name} — {employee.officeAssignment}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <EmployeeCombobox
+              id="employeeId"
+              employees={employees}
+              value={employeeId}
+              onValueChange={setEmployeeId}
+              placeholder="Search employee..."
+              className="w-full"
+            />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">

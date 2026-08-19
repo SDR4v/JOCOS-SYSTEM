@@ -8,9 +8,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { EmployeeCombobox, type EmployeeOption } from "@/components/employee-combobox";
 import { MONTH_NAMES, halfLabel, type Half } from "@/lib/period";
-
-type EmployeeOption = { id: string; name: string; officeAssignment: string };
 
 export function DtrFilters({
   employees,
@@ -39,18 +38,13 @@ export function DtrFilters({
 
   return (
     <div className="flex flex-wrap items-center gap-3">
-      <Select value={employeeId} onValueChange={(value) => pushParams({ employeeId: value as string })}>
-        <SelectTrigger className="w-64">
-          <SelectValue placeholder="Select employee" />
-        </SelectTrigger>
-        <SelectContent>
-          {employees.map((employee) => (
-            <SelectItem key={employee.id} value={employee.id}>
-              {employee.name} — {employee.officeAssignment}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      <EmployeeCombobox
+        employees={employees}
+        value={employeeId}
+        onValueChange={(id) => pushParams({ employeeId: id })}
+        placeholder="Search employee..."
+        className="w-72"
+      />
 
       <Select value={String(month)} onValueChange={(value) => pushParams({ month: Number(value) })}>
         <SelectTrigger className="w-36">
