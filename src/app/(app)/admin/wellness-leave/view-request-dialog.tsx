@@ -4,6 +4,13 @@ import { Eye } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { wellnessLeaveDisplayStatusLabel, type WellnessLeaveDisplayStatus } from "@/lib/wellness-leave";
+
+const STATUS_BADGE_VARIANT: Record<WellnessLeaveDisplayStatus, "default" | "outline" | "destructive"> = {
+  UPCOMING: "outline",
+  TAKEN: "default",
+  CANCELLED: "destructive",
+};
 
 export type WellnessLeaveRequestDetails = {
   employeeName: string;
@@ -13,10 +20,10 @@ export type WellnessLeaveRequestDetails = {
   datesLabel: string;
   daysCount: number;
   notes: string | null;
-  status: "PENDING" | "APPROVED" | "REJECTED";
+  displayStatus: WellnessLeaveDisplayStatus;
   filedAtLabel: string;
-  resolvedByLabel?: string | null;
-  resolvedAtLabel?: string | null;
+  pulledOutByLabel?: string | null;
+  pulledOutAtLabel?: string | null;
 };
 
 export function ViewWellnessLeaveRequestDialog({ request }: { request: WellnessLeaveRequestDetails }) {
@@ -53,19 +60,15 @@ export function ViewWellnessLeaveRequestDialog({ request }: { request: WellnessL
 
           <div>
             <p className="text-xs text-muted-foreground">Status</p>
-            <Badge
-              variant={
-                request.status === "APPROVED" ? "default" : request.status === "REJECTED" ? "destructive" : "outline"
-              }
-            >
-              {request.status}
+            <Badge variant={STATUS_BADGE_VARIANT[request.displayStatus]}>
+              {wellnessLeaveDisplayStatusLabel(request.displayStatus)}
             </Badge>
           </div>
 
-          {request.resolvedByLabel && (
+          {request.pulledOutByLabel && (
             <DetailField
-              label={request.status === "APPROVED" ? "Approved by" : "Rejected by"}
-              value={`${request.resolvedByLabel}${request.resolvedAtLabel ? ` · ${request.resolvedAtLabel}` : ""}`}
+              label="Pulled out by"
+              value={`${request.pulledOutByLabel}${request.pulledOutAtLabel ? ` · ${request.pulledOutAtLabel}` : ""}`}
               full
             />
           )}

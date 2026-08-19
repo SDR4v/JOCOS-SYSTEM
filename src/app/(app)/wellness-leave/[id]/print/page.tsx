@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { formatISODate } from "@/lib/period";
-import { getSemester } from "@/lib/wellness-leave";
+import { getSemester, wellnessLeaveDisplayStatus } from "@/lib/wellness-leave";
 import { getDailyRate } from "@/lib/payroll";
 import { PrintButton } from "../../print-button";
 import { WellnessLeaveApplicationForm, peso } from "../../print-form";
@@ -13,7 +13,7 @@ export default async function WellnessLeavePrintPage({ params }: PageProps<"/wel
 
   const request = await prisma.wellnessLeaveRequest.findUnique({
     where: { id },
-    include: { employee: true, requestedBy: true, approvedBy: true },
+    include: { employee: true, requestedBy: true, cancelledBy: true },
   });
   if (!request) notFound();
   if (user.role !== "ADMIN" && request.employeeId !== user.employeeId) notFound();
@@ -58,17 +58,10 @@ export default async function WellnessLeavePrintPage({ params }: PageProps<"/wel
         sem2Balance={sem2Balance}
         lessSem1Label={semester === 1 ? String(request.daysCount) : "-"}
         lessSem2Label={semester === 2 ? String(request.daysCount) : "-"}
-        requestedByLabel={request.requestedBy.username}
-        status={request.status}
-        approvedForDaysLabel={request.status === "APPROVED" ? String(request.daysCount) : "____"}
-        approvalSignature={
-          request.approvedBy && request.approvedAt
-            ? {
-                name: request.approvedBy.username,
-                role: `${request.status === "APPROVED" ? "Approving Officer" : "Resolving Officer"}, resolved ${formatISODate(request.approvedAt)}`,
-              }
-            : null
-        }
+        filedByLabel={request.requestedBy.username}
+        displayStatus={wellnessLeaveDisplayStatus(request.status, request.endDate)}
+        pulledOutByLabel={request.cancelledBy?.username ?? null}
+        pulledOutAtLabel={request.cancelledAt ? formatISODate(request.cancelledAt) : null}
       />
     </div>
   );

@@ -7,8 +7,21 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatISODate } from "@/lib/period";
-import { semesterLabel } from "@/lib/wellness-leave";
+import {
+  semesterLabel,
+  wellnessLeaveDisplayStatus,
+  wellnessLeaveDisplayStatusLabel,
+  canPullOutWellnessLeave,
+  type WellnessLeaveDisplayStatus,
+} from "@/lib/wellness-leave";
 import { NewMyWellnessLeaveRequestDialog } from "./request-dialog";
+import { PullOutButton } from "./pull-out-button";
+
+const STATUS_BADGE_VARIANT: Record<WellnessLeaveDisplayStatus, "default" | "outline" | "destructive"> = {
+  UPCOMING: "outline",
+  TAKEN: "default",
+  CANCELLED: "destructive",
+};
 
 export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/my-wellness-leave">) {
   const user = await requireUser();
@@ -111,19 +124,12 @@ export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/
                 <TableCell>{request.daysCount}</TableCell>
                 <TableCell className="text-sm text-muted-foreground">{request.notes ?? ""}</TableCell>
                 <TableCell>
-                  <Badge
-                    variant={
-                      request.status === "APPROVED"
-                        ? "default"
-                        : request.status === "REJECTED"
-                          ? "destructive"
-                          : "outline"
-                    }
-                  >
-                    {request.status}
+                  <Badge variant={STATUS_BADGE_VARIANT[wellnessLeaveDisplayStatus(request.status, request.endDate)]}>
+                    {wellnessLeaveDisplayStatusLabel(wellnessLeaveDisplayStatus(request.status, request.endDate))}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="flex justify-end gap-2">
+                  {canPullOutWellnessLeave(request.status, request.endDate) && <PullOutButton id={request.id} />}
                   <Link href={`/wellness-leave/${request.id}/print`}>
                     <Button type="button" variant="outline" size="sm">
                       <Printer />

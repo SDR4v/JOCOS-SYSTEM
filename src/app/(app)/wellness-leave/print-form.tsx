@@ -20,10 +20,10 @@ export type WellnessLeaveApplicationFormProps = {
   sem2Balance: Balance;
   lessSem1Label: string;
   lessSem2Label: string;
-  requestedByLabel: string;
-  status: "PENDING" | "APPROVED" | "REJECTED" | null;
-  approvedForDaysLabel: string;
-  approvalSignature: { name: string; role: string } | null;
+  filedByLabel: string;
+  displayStatus: "UPCOMING" | "TAKEN" | "CANCELLED" | null;
+  pulledOutByLabel?: string | null;
+  pulledOutAtLabel?: string | null;
 };
 
 export function WellnessLeaveApplicationForm({
@@ -40,10 +40,10 @@ export function WellnessLeaveApplicationForm({
   sem2Balance,
   lessSem1Label,
   lessSem2Label,
-  requestedByLabel,
-  status,
-  approvedForDaysLabel,
-  approvalSignature,
+  filedByLabel,
+  displayStatus,
+  pulledOutByLabel,
+  pulledOutAtLabel,
 }: WellnessLeaveApplicationFormProps) {
   return (
     <div className="mx-auto max-w-3xl bg-white p-8 text-[13px] text-black print:m-0 print:max-w-none print:p-0">
@@ -113,11 +113,11 @@ export function WellnessLeaveApplicationForm({
 
         {/* Section 7 header */}
         <div className="border-b border-black bg-primary/10 py-1 text-center font-bold text-primary">
-          7. DETAILS OF ACTION ON APPLICATION
+          7. WELLNESS LEAVE CREDITS &amp; STATUS
         </div>
 
         {/* 7.A / 7.B */}
-        <div className="flex border-b border-black">
+        <div className="flex">
           <div className="w-1/2 border-r border-black p-2">
             <p className="mb-1 font-bold">7.A CERTIFICATION OF WELLNESS LEAVE CREDITS</p>
             <p className="mb-2 text-xs">As of {new Date().toLocaleDateString()}</p>
@@ -141,45 +141,22 @@ export function WellnessLeaveApplicationForm({
             </table>
             <div className="mt-6 mb-1 h-8 border-b border-black" />
             <p className="text-center text-xs">
-              {requestedByLabel}
+              {filedByLabel}
               <br />
-              (Authorized Officer)
+              (Filed by)
             </p>
           </div>
           <div className="w-1/2 p-2">
-            <p className="mb-2 font-bold">7.B RECOMMENDATION</p>
-            <p>{status === "APPROVED" ? "☑" : "☐"} For approval</p>
-            <p>
-              {status === "REJECTED" ? "☑" : "☐"} For disapproval due to
-              {status === "REJECTED" ? " " : " ______________________"}
-            </p>
-            <p className="mt-4 border-b border-black">&nbsp;</p>
-            <p className="mt-1 border-b border-black">&nbsp;</p>
-          </div>
-        </div>
-
-        {/* 7.C / 7.D */}
-        <div className="flex">
-          <div className="w-1/2 border-r border-black p-2">
-            <p className="mb-2 font-bold">7.C APPROVED FOR:</p>
-            <p>{approvedForDaysLabel} days with pay</p>
-            <p>____ days without pay</p>
-            <p>____ others (Specify) ________________</p>
-            {approvalSignature && (
-              <>
-                <div className="mt-6 mb-1 h-8 border-b border-black" />
-                <p className="text-center text-xs">
-                  {approvalSignature.name}
-                  <br />({approvalSignature.role})
-                </p>
-              </>
+            <p className="mb-2 font-bold">7.B STATUS</p>
+            <p>{displayStatus === "UPCOMING" ? "☑" : "☐"} Upcoming — not yet taken</p>
+            <p>{displayStatus === "TAKEN" ? "☑" : "☐"} Taken — leave period has passed</p>
+            <p>{displayStatus === "CANCELLED" ? "☑" : "☐"} Pulled out by the employee before it was taken</p>
+            {displayStatus === "CANCELLED" && pulledOutByLabel && (
+              <p className="mt-2 text-xs">
+                Pulled out by {pulledOutByLabel}
+                {pulledOutAtLabel ? ` on ${pulledOutAtLabel}` : ""}
+              </p>
             )}
-          </div>
-          <div className="w-1/2 p-2">
-            <p className="mb-2 font-bold">7.D DISAPPROVED DUE TO:</p>
-            <p className="mt-4 border-b border-black">&nbsp;</p>
-            <p className="mt-4 border-b border-black">&nbsp;</p>
-            <p className="mt-4 border-b border-black">&nbsp;</p>
           </div>
         </div>
       </div>

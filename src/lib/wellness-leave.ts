@@ -14,3 +14,33 @@ export function getSemester(date: Date): Semester {
 export function semesterLabel(semester: Semester): string {
   return semester === 1 ? "1st Sem (Jan–Jun)" : "2nd Sem (Jul–Dec)";
 }
+
+// No admin approval gate: a filed request takes effect immediately. What's
+// worth tracking instead is whether it has already happened, is still
+// coming up, or was pulled back out before it happened.
+export type WellnessLeaveDisplayStatus = "UPCOMING" | "TAKEN" | "CANCELLED";
+
+export function wellnessLeaveDisplayStatus(
+  status: "ACTIVE" | "CANCELLED",
+  endDate: Date,
+): WellnessLeaveDisplayStatus {
+  if (status === "CANCELLED") return "CANCELLED";
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  return endDate < today ? "TAKEN" : "UPCOMING";
+}
+
+export function wellnessLeaveDisplayStatusLabel(status: WellnessLeaveDisplayStatus): string {
+  switch (status) {
+    case "UPCOMING":
+      return "Upcoming";
+    case "TAKEN":
+      return "Taken";
+    case "CANCELLED":
+      return "Pulled Out";
+  }
+}
+
+export function canPullOutWellnessLeave(status: "ACTIVE" | "CANCELLED", endDate: Date): boolean {
+  return wellnessLeaveDisplayStatus(status, endDate) === "UPCOMING";
+}

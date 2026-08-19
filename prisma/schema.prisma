@@ -28,7 +28,7 @@ model User {
 
   editedAttendanceDays AttendanceDay[]        @relation("AttendanceDayEditor")
   requestedLeaves      WellnessLeaveRequest[] @relation("LeaveRequester")
-  approvedLeaves       WellnessLeaveRequest[] @relation("LeaveApprover")
+  cancelledLeaves      WellnessLeaveRequest[] @relation("LeaveCanceller")
   enteredTripAuths     TripAuthorization[]    @relation("TripAuthEnteredBy")
   biometricUploads     BiometricUpload[]      @relation("BiometricUploader")
   reviewedDtrRequests  DtrEntryRequest[]      @relation("DtrRequestReviewer")
@@ -210,10 +210,13 @@ model WellnessLeaveBalance {
   @@unique([employeeId, year, semester])
 }
 
+// No admin approval gate — a request takes effect immediately on filing
+// (balance drawn down, attendance days marked WELLNESS_LEAVE). ACTIVE vs.
+// already-taken is derived from today's date vs. endDate at display time;
+// CANCELLED means the employee pulled it back out before it happened.
 enum LeaveRequestStatus {
-  PENDING
-  APPROVED
-  REJECTED
+  ACTIVE
+  CANCELLED
 }
 
 model WellnessLeaveRequest {
@@ -223,15 +226,15 @@ model WellnessLeaveRequest {
   startDate   DateTime
   endDate     DateTime
   daysCount   Int
-  status      LeaveRequestStatus  @default(PENDING)
+  status      LeaveRequestStatus  @default(ACTIVE)
   notes       String?
 
   requestedById String
   requestedBy   User   @relation("LeaveRequester", fields: [requestedById], references: [id])
 
-  approvedById String?
-  approvedBy   User?    @relation("LeaveApprover", fields: [approvedById], references: [id])
-  approvedAt   DateTime?
+  cancelledById String?
+  cancelledBy   User?    @relation("LeaveCanceller", fields: [cancelledById], references: [id])
+  cancelledAt   DateTime?
 
   createdAt DateTime @default(now())
 }

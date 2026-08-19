@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
 import { datesBetween, parseISODate } from "@/lib/period";
-import { MAX_CONSECUTIVE_DAYS, getSemester } from "@/lib/wellness-leave";
+import { MAX_CONSECUTIVE_DAYS, getSemester, canPullOutWellnessLeave } from "@/lib/wellness-leave";
 
 export type FormState = { error: string | null };
 
@@ -14,6 +14,14 @@ const requestSchema = z.object({
   endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   notes: z.string().trim().max(500).optional(),
 });
+
+function revalidateWellnessLeavePaths() {
+  revalidatePath("/my-wellness-leave");
+  revalidatePath("/admin/wellness-leave");
+  revalidatePath("/admin/dtr");
+  revalidatePath("/admin/payroll");
+  revalidatePath("/my-dtr");
+}
 
 export async function createMyWellnessLeaveRequest(_prev: FormState, formData: FormData): Promise<FormState> {
   const user = await requireUser();
@@ -40,18 +48,103 @@ export async function createMyWellnessLeaveRequest(_prev: FormState, formData: F
     return { error: "The request must fall entirely within one semester (Jan–Jun or Jul–Dec)" };
   }
 
-  await prisma.wellnessLeaveRequest.create({
-    data: {
-      employeeId: user.employeeId,
-      startDate: start,
-      endDate: end,
-      daysCount: dates.length,
-      notes: parsed.data.notes || null,
-      requestedById: user.id,
-    },
+  const year = start.getUTCFullYear();
+  const employeeId = user.employeeId;
+
+  const balance = await prisma.wellnessLeaveBalance.findUnique({
+    where: { employeeId_year_semester: { employeeId, year, semester } },
+  });
+  if (!balance) {
+    return { error: "No Wellness Leave balance has been set up for you yet. Ask HR to initialize it." };
+  }
+
+  const remaining = balance.allotted - balance.used;
+  if (dates.length > remaining) {
+    return { error: `Only ${remaining} Wellness Leave day(s) remaining this semester` };
+  }
+
+  await prisma.$transaction([
+    prisma.wellnessLeaveRequest.create({
+      data: {
+        employeeId,
+        startDate: start,
+        endDate: end,
+        daysCount: dates.length,
+        notes: parsed.data.notes || null,
+        requestedById: user.id,
+      },
+    }),
+    prisma.wellnessLeaveBalance.update({
+      where: { id: balance.id },
+      data: { used: { increment: dates.length } },
+    }),
+    ...dates.map((date) =>
+      prisma.attendanceDay.upsert({
+        where: { employeeId_date: { employeeId, date } },
+        update: {
+          code: "WELLNESS_LEAVE",
+          dayCredit: 1,
+          lateMinutes: 0,
+          source: "WELLNESS_LEAVE",
+          editedById: user.id,
+          editedAt: new Date(),
+        },
+        create: {
+          employeeId,
+          date,
+          code: "WELLNESS_LEAVE",
+          dayCredit: 1,
+          source: "WELLNESS_LEAVE",
+          editedById: user.id,
+        },
+      }),
+    ),
+  ]);
+
+  revalidateWellnessLeavePaths();
+  return { error: null };
+}
+
+export async function pullOutMyWellnessLeaveRequest(id: string): Promise<FormState> {
+  const user = await requireUser();
+  if (!user.employeeId) {
+    return { error: "Your account isn't linked to an employee record." };
+  }
+
+  const request = await prisma.wellnessLeaveRequest.findUnique({ where: { id } });
+  if (!request) return { error: "Request not found" };
+  if (request.employeeId !== user.employeeId) return { error: "This isn't your request" };
+  if (request.status === "CANCELLED") return { error: "This request has already been pulled out" };
+  if (!canPullOutWellnessLeave(request.status, request.endDate)) {
+    return { error: "This Wellness Leave has already taken place and can no longer be pulled out" };
+  }
+
+  const semester = getSemester(request.startDate);
+  const year = request.startDate.getUTCFullYear();
+  const dates = datesBetween(request.startDate, request.endDate);
+
+  const balance = await prisma.wellnessLeaveBalance.findUnique({
+    where: { employeeId_year_semester: { employeeId: request.employeeId, year, semester } },
   });
 
-  revalidatePath("/my-wellness-leave");
-  revalidatePath("/admin/wellness-leave");
+  await prisma.$transaction([
+    prisma.wellnessLeaveRequest.update({
+      where: { id },
+      data: { status: "CANCELLED", cancelledById: user.id, cancelledAt: new Date() },
+    }),
+    ...(balance
+      ? [
+          prisma.wellnessLeaveBalance.update({
+            where: { id: balance.id },
+            data: { used: { decrement: request.daysCount } },
+          }),
+        ]
+      : []),
+    prisma.attendanceDay.deleteMany({
+      where: { employeeId: request.employeeId, date: { in: dates }, source: "WELLNESS_LEAVE" },
+    }),
+  ]);
+
+  revalidateWellnessLeavePaths();
   return { error: null };
 }

@@ -8,40 +8,61 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatISODate } from "@/lib/period";
-import { semesterLabel, getSemester } from "@/lib/wellness-leave";
+import {
+  semesterLabel,
+  getSemester,
+  wellnessLeaveDisplayStatus,
+  wellnessLeaveDisplayStatusLabel,
+  type WellnessLeaveDisplayStatus,
+} from "@/lib/wellness-leave";
 import { ViewWellnessLeaveRequestDialog } from "./view-request-dialog";
 
-type ResolvedStatus = "APPROVED" | "REJECTED";
+type RequestStatus = "ACTIVE" | "CANCELLED";
 
-type ResolvedRequest = {
+type WellnessLeaveRequestRow = {
   id: string;
   startDate: Date;
   endDate: Date;
   daysCount: number;
   notes: string | null;
-  status: ResolvedStatus;
+  status: RequestStatus;
   employee: { name: string; officeAssignment: string; positionTitle: string };
   createdAt: Date;
-  resolvedByName: string | null;
-  resolvedAt: Date | null;
+  cancelledByName: string | null;
+  cancelledAt: Date | null;
 };
 
-type StatusFilter = "ALL" | ResolvedStatus;
+type StatusFilter = "ALL" | WellnessLeaveDisplayStatus;
 
-export function RequestHistoryTable({ requests }: { requests: ResolvedRequest[] }) {
+const STATUS_BADGE_VARIANT: Record<WellnessLeaveDisplayStatus, "default" | "outline" | "destructive"> = {
+  UPCOMING: "outline",
+  TAKEN: "default",
+  CANCELLED: "destructive",
+};
+
+export function RequestHistoryTable({ requests }: { requests: WellnessLeaveRequestRow[] }) {
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<StatusFilter>("ALL");
 
+  const rows = useMemo(
+    () => requests.map((r) => ({ ...r, displayStatus: wellnessLeaveDisplayStatus(r.status, r.endDate) })),
+    [requests],
+  );
+
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return requests.filter((r) => {
-      if (status !== "ALL" && r.status !== status) return false;
+    return rows.filter((r) => {
+      if (status !== "ALL" && r.displayStatus !== status) return false;
       if (q && !r.employee.name.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [requests, query, status]);
+  }, [rows, query, status]);
 
-  const rejectedCount = requests.filter((r) => r.status === "REJECTED").length;
+  const counts = useMemo(() => {
+    const c: Record<WellnessLeaveDisplayStatus, number> = { UPCOMING: 0, TAKEN: 0, CANCELLED: 0 };
+    for (const r of rows) c[r.displayStatus]++;
+    return c;
+  }, [rows]);
 
   return (
     <div className="space-y-3">
@@ -51,7 +72,7 @@ export function RequestHistoryTable({ requests }: { requests: ResolvedRequest[] 
           <Input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search request history by employee name..."
+            placeholder="Search requests by employee name..."
             className="pl-8"
           />
         </div>
@@ -61,19 +82,27 @@ export function RequestHistoryTable({ requests }: { requests: ResolvedRequest[] 
           </Button>
           <Button
             type="button"
-            variant={status === "APPROVED" ? "default" : "outline"}
+            variant={status === "UPCOMING" ? "default" : "outline"}
             size="sm"
-            onClick={() => setStatus("APPROVED")}
+            onClick={() => setStatus("UPCOMING")}
           >
-            Approved
+            Upcoming ({counts.UPCOMING})
           </Button>
           <Button
             type="button"
-            variant={status === "REJECTED" ? "default" : "outline"}
+            variant={status === "TAKEN" ? "default" : "outline"}
             size="sm"
-            onClick={() => setStatus("REJECTED")}
+            onClick={() => setStatus("TAKEN")}
           >
-            Rejected ({rejectedCount})
+            Taken ({counts.TAKEN})
+          </Button>
+          <Button
+            type="button"
+            variant={status === "CANCELLED" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setStatus("CANCELLED")}
+          >
+            Pulled Out ({counts.CANCELLED})
           </Button>
         </div>
       </div>
@@ -104,10 +133,12 @@ export function RequestHistoryTable({ requests }: { requests: ResolvedRequest[] 
                 <TableCell className="text-sm">
                   {formatISODate(request.startDate)} – {formatISODate(request.endDate)}
                 </TableCell>
-                <TableCell className="text-sm">{semesterLabel(request.startDate.getUTCMonth() < 6 ? 1 : 2)}</TableCell>
+                <TableCell className="text-sm">{semesterLabel(getSemester(request.startDate))}</TableCell>
                 <TableCell>{request.daysCount}</TableCell>
                 <TableCell>
-                  <Badge variant={request.status === "APPROVED" ? "default" : "destructive"}>{request.status}</Badge>
+                  <Badge variant={STATUS_BADGE_VARIANT[request.displayStatus]}>
+                    {wellnessLeaveDisplayStatusLabel(request.displayStatus)}
+                  </Badge>
                 </TableCell>
                 <TableCell className="flex justify-end gap-2">
                   <ViewWellnessLeaveRequestDialog
@@ -119,10 +150,10 @@ export function RequestHistoryTable({ requests }: { requests: ResolvedRequest[] 
                       datesLabel: `${formatISODate(request.startDate)} – ${formatISODate(request.endDate)}`,
                       daysCount: request.daysCount,
                       notes: request.notes,
-                      status: request.status,
+                      displayStatus: request.displayStatus,
                       filedAtLabel: formatISODate(request.createdAt),
-                      resolvedByLabel: request.resolvedByName,
-                      resolvedAtLabel: request.resolvedAt ? formatISODate(request.resolvedAt) : null,
+                      pulledOutByLabel: request.cancelledByName,
+                      pulledOutAtLabel: request.cancelledAt ? formatISODate(request.cancelledAt) : null,
                     }}
                   />
                   <Link href={`/wellness-leave/${request.id}/print`}>

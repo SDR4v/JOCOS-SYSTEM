@@ -1,16 +1,10 @@
 import Link from "next/link";
-import { Printer } from "lucide-react";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
-import { formatISODate } from "@/lib/period";
-import { semesterLabel, getSemester } from "@/lib/wellness-leave";
-import { ApproveRejectButtons } from "./wellness-leave-dialogs";
 import { InitializeYearButton } from "./initialize-year-button";
 import { BalancesTable } from "./balances-table";
 import { RequestHistoryTable } from "./request-history-table";
-import { ViewWellnessLeaveRequestDialog } from "./view-request-dialog";
 
 export default async function WellnessLeavePage({ searchParams }: PageProps<"/admin/wellness-leave">) {
   await requireAdmin();
@@ -28,16 +22,13 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
     prisma.wellnessLeaveBalance.findMany({ where: { year } }),
     prisma.wellnessLeaveRequest.findMany({
       where: { startDate: { gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) } },
-      include: { employee: true, approvedBy: true },
-      orderBy: { createdAt: "desc" },
+      include: { employee: true, cancelledBy: true },
+      orderBy: { startDate: "desc" },
     }),
   ]);
 
   const balanceMap = Object.fromEntries(balances.map((b) => [`${b.employeeId}-${b.semester}`, b]));
   const initialized = balances.length > 0;
-
-  const pendingRequests = requests.filter((r) => r.status === "PENDING");
-  const resolvedRequests = requests.filter((r) => r.status !== "PENDING");
 
   return (
     <div className="space-y-6">
@@ -45,7 +36,8 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
         <h1 className="text-2xl font-semibold">Wellness Leave</h1>
         <p className="text-sm text-muted-foreground">
           5 days/year per COS worker — 3 for 1st Sem (Jan–Jun), 2 for 2nd Sem (Jul–Dec). Employees file their own
-          requests; review and approve them below.
+          requests and they take effect right away — no approval needed. Track below whether each one is upcoming,
+          already taken, or was pulled out.
         </p>
       </div>
 
@@ -58,64 +50,6 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
           </Link>
         ))}
       </div>
-
-      {pendingRequests.length > 0 && (
-        <div className="space-y-2">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            Pending Requests
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-gold/15 px-1.5 text-xs font-semibold text-brand-gold">
-              {pendingRequests.length}
-            </span>
-          </h2>
-          <div className="rounded-lg border bg-card shadow-sm">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Employee</TableHead>
-                  <TableHead>Dates</TableHead>
-                  <TableHead>Days</TableHead>
-                  <TableHead>Notes</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {pendingRequests.map((request) => (
-                  <TableRow key={request.id}>
-                    <TableCell className="font-medium">{request.employee.name}</TableCell>
-                    <TableCell className="text-sm">
-                      {formatISODate(request.startDate)} – {formatISODate(request.endDate)}
-                    </TableCell>
-                    <TableCell>{request.daysCount}</TableCell>
-                    <TableCell className="text-sm text-muted-foreground">{request.notes ?? ""}</TableCell>
-                    <TableCell className="flex justify-end gap-2">
-                      <ViewWellnessLeaveRequestDialog
-                        request={{
-                          employeeName: request.employee.name,
-                          officeAssignment: request.employee.officeAssignment,
-                          positionTitle: request.employee.positionTitle,
-                          semesterLabel: semesterLabel(getSemester(request.startDate)),
-                          datesLabel: `${formatISODate(request.startDate)} – ${formatISODate(request.endDate)}`,
-                          daysCount: request.daysCount,
-                          notes: request.notes,
-                          status: "PENDING",
-                          filedAtLabel: formatISODate(request.createdAt),
-                        }}
-                      />
-                      <Link href={`/wellness-leave/${request.id}/print`}>
-                        <Button type="button" variant="outline" size="sm">
-                          <Printer />
-                          Print
-                        </Button>
-                      </Link>
-                      <ApproveRejectButtons id={request.id} />
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </div>
-        </div>
-      )}
 
       <div className="space-y-2">
         <div className="flex items-center justify-between">
@@ -135,21 +69,21 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
         )}
       </div>
 
-      {resolvedRequests.length > 0 && (
+      {requests.length > 0 && (
         <div className="space-y-2">
-          <h2 className="text-sm font-semibold text-muted-foreground">Request History</h2>
+          <h2 className="text-sm font-semibold text-muted-foreground">Requests — {year}</h2>
           <RequestHistoryTable
-            requests={resolvedRequests.map((r) => ({
+            requests={requests.map((r) => ({
               id: r.id,
               startDate: r.startDate,
               endDate: r.endDate,
               daysCount: r.daysCount,
               notes: r.notes,
-              status: r.status as "APPROVED" | "REJECTED",
+              status: r.status as "ACTIVE" | "CANCELLED",
               employee: { name: r.employee.name, officeAssignment: r.employee.officeAssignment, positionTitle: r.employee.positionTitle },
               createdAt: r.createdAt,
-              resolvedByName: r.approvedBy?.username ?? null,
-              resolvedAt: r.approvedAt,
+              cancelledByName: r.cancelledBy?.username ?? null,
+              cancelledAt: r.cancelledAt,
             }))}
           />
         </div>

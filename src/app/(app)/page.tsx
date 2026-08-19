@@ -12,10 +12,13 @@ export default async function HomePage() {
     redirect("/my-dtr");
   }
 
-  const [employeeCount, pendingDtrRequests, pendingWellnessLeave] = await Promise.all([
+  const now = new Date();
+  const today = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+
+  const [employeeCount, pendingDtrRequests, upcomingWellnessLeave] = await Promise.all([
     prisma.employee.count({ where: { status: "ACTIVE" } }),
     prisma.dtrEntryRequest.count({ where: { status: "PENDING" } }),
-    prisma.wellnessLeaveRequest.count({ where: { status: "PENDING" } }),
+    prisma.wellnessLeaveRequest.count({ where: { status: "ACTIVE", endDate: { gte: today } } }),
   ]);
 
   return (
@@ -34,13 +37,7 @@ export default async function HomePage() {
           href="/admin/dtr-requests"
           highlight={pendingDtrRequests > 0}
         />
-        <StatCard
-          label="Pending Wellness Leave"
-          value={pendingWellnessLeave}
-          icon={HeartPulse}
-          href="/admin/wellness-leave"
-          highlight={pendingWellnessLeave > 0}
-        />
+        <StatCard label="Upcoming Wellness Leave" value={upcomingWellnessLeave} icon={HeartPulse} href="/admin/wellness-leave" />
       </div>
 
       <div>
@@ -65,9 +62,8 @@ export default async function HomePage() {
           <DashboardCard
             href="/admin/wellness-leave"
             title="Wellness Leave"
-            description="Balances and approval requests"
+            description="Balances and request tracking"
             icon={HeartPulse}
-            badge={pendingWellnessLeave}
           />
         </div>
       </div>

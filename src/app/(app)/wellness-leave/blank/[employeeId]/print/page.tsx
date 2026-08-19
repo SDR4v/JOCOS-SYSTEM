@@ -57,10 +57,8 @@ export default async function BlankWellnessLeavePrintPage({
         sem2Balance={sem2Balance}
         lessSem1Label="____"
         lessSem2Label="____"
-        requestedByLabel="____________________"
-        status={null}
-        approvedForDaysLabel="____"
-        approvalSignature={null}
+        filedByLabel="____________________"
+        displayStatus={null}
       />
     </div>
   );
