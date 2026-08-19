@@ -2,6 +2,8 @@
 // office's CS Form No. 6 layout. Used both for a specific (filled-in)
 // request and for a blank form printed ahead of a request being filed.
 
+import Image from "next/image";
+
 type Balance = { allotted: number; used: number } | null;
 
 export type WellnessLeaveApplicationFormProps = {
@@ -45,16 +47,19 @@ export function WellnessLeaveApplicationForm({
 }: WellnessLeaveApplicationFormProps) {
   return (
     <div className="mx-auto max-w-3xl bg-white p-8 text-[13px] text-black print:m-0 print:max-w-none print:p-0">
-      <p className="text-xs italic">
+      <p className="text-xs font-medium text-primary italic">
         Adapted from CS Form No. 6
         <br />
         (Revised 2020)
       </p>
 
-      <div className="mb-1 text-center">
-        <p className="italic">Republic of the Philippines</p>
-        <p className="font-bold italic">CITY GOVERNMENT OF BATAC</p>
-        <p className="text-xs italic">Brgy. 1-S Valdez, City of Batac, Ilocos Norte</p>
+      <div className="mb-1 flex items-center justify-center gap-3">
+        <Image src="/batac-seal.jpg" alt="" width={56} height={56} className="shrink-0" />
+        <div className="text-center">
+          <p className="italic">Republic of the Philippines</p>
+          <p className="font-bold italic">CITY GOVERNMENT OF BATAC</p>
+          <p className="text-xs italic">Brgy. 1-S Valdez, City of Batac, Ilocos Norte</p>
+        </div>
       </div>
       <h1 className="mb-4 text-center text-lg font-bold tracking-wide">APPLICATION FOR WELLNESS LEAVE</h1>
 
@@ -73,7 +78,7 @@ export function WellnessLeaveApplicationForm({
         </div>
 
         {/* Section 6 header */}
-        <div className="border-b border-black bg-gray-100 py-1 text-center font-bold">6. DETAILS OF APPLICATION</div>
+        <div className="border-b border-black bg-primary/10 py-1 text-center font-bold text-primary">6. DETAILS OF APPLICATION</div>
 
         {/* 6.A / 6.B */}
         <div className="flex border-b border-black">
@@ -107,7 +112,7 @@ export function WellnessLeaveApplicationForm({
         </div>
 
         {/* Section 7 header */}
-        <div className="border-b border-black bg-gray-100 py-1 text-center font-bold">
+        <div className="border-b border-black bg-primary/10 py-1 text-center font-bold text-primary">
           7. DETAILS OF ACTION ON APPLICATION
         </div>
 
