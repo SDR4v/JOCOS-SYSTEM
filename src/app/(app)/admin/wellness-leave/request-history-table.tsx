@@ -8,7 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatISODate } from "@/lib/period";
-import { semesterLabel } from "@/lib/wellness-leave";
+import { semesterLabel, getSemester } from "@/lib/wellness-leave";
+import { ViewWellnessLeaveRequestDialog } from "./view-request-dialog";
 
 type ResolvedStatus = "APPROVED" | "REJECTED";
 
@@ -17,8 +18,12 @@ type ResolvedRequest = {
   startDate: Date;
   endDate: Date;
   daysCount: number;
+  notes: string | null;
   status: ResolvedStatus;
-  employee: { name: string };
+  employee: { name: string; officeAssignment: string; positionTitle: string };
+  createdAt: Date;
+  resolvedByName: string | null;
+  resolvedAt: Date | null;
 };
 
 type StatusFilter = "ALL" | ResolvedStatus;
@@ -104,7 +109,22 @@ export function RequestHistoryTable({ requests }: { requests: ResolvedRequest[] 
                 <TableCell>
                   <Badge variant={request.status === "APPROVED" ? "default" : "destructive"}>{request.status}</Badge>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="flex justify-end gap-2">
+                  <ViewWellnessLeaveRequestDialog
+                    request={{
+                      employeeName: request.employee.name,
+                      officeAssignment: request.employee.officeAssignment,
+                      positionTitle: request.employee.positionTitle,
+                      semesterLabel: semesterLabel(getSemester(request.startDate)),
+                      datesLabel: `${formatISODate(request.startDate)} – ${formatISODate(request.endDate)}`,
+                      daysCount: request.daysCount,
+                      notes: request.notes,
+                      status: request.status,
+                      filedAtLabel: formatISODate(request.createdAt),
+                      resolvedByLabel: request.resolvedByName,
+                      resolvedAtLabel: request.resolvedAt ? formatISODate(request.resolvedAt) : null,
+                    }}
+                  />
                   <Link href={`/wellness-leave/${request.id}/print`}>
                     <Button type="button" variant="outline" size="sm">
                       <Printer />

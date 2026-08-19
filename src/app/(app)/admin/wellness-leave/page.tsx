@@ -5,10 +5,12 @@ import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { formatISODate } from "@/lib/period";
+import { semesterLabel, getSemester } from "@/lib/wellness-leave";
 import { ApproveRejectButtons } from "./wellness-leave-dialogs";
 import { InitializeYearButton } from "./initialize-year-button";
 import { BalancesTable } from "./balances-table";
 import { RequestHistoryTable } from "./request-history-table";
+import { ViewWellnessLeaveRequestDialog } from "./view-request-dialog";
 
 export default async function WellnessLeavePage({ searchParams }: PageProps<"/admin/wellness-leave">) {
   await requireAdmin();
@@ -26,7 +28,7 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
     prisma.wellnessLeaveBalance.findMany({ where: { year } }),
     prisma.wellnessLeaveRequest.findMany({
       where: { startDate: { gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) } },
-      include: { employee: true },
+      include: { employee: true, approvedBy: true },
       orderBy: { createdAt: "desc" },
     }),
   ]);
@@ -86,6 +88,19 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
                     <TableCell>{request.daysCount}</TableCell>
                     <TableCell className="text-sm text-muted-foreground">{request.notes ?? ""}</TableCell>
                     <TableCell className="flex justify-end gap-2">
+                      <ViewWellnessLeaveRequestDialog
+                        request={{
+                          employeeName: request.employee.name,
+                          officeAssignment: request.employee.officeAssignment,
+                          positionTitle: request.employee.positionTitle,
+                          semesterLabel: semesterLabel(getSemester(request.startDate)),
+                          datesLabel: `${formatISODate(request.startDate)} – ${formatISODate(request.endDate)}`,
+                          daysCount: request.daysCount,
+                          notes: request.notes,
+                          status: "PENDING",
+                          filedAtLabel: formatISODate(request.createdAt),
+                        }}
+                      />
                       <Link href={`/wellness-leave/${request.id}/print`}>
                         <Button type="button" variant="outline" size="sm">
                           <Printer />
@@ -129,8 +144,12 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
               startDate: r.startDate,
               endDate: r.endDate,
               daysCount: r.daysCount,
+              notes: r.notes,
               status: r.status as "APPROVED" | "REJECTED",
-              employee: { name: r.employee.name },
+              employee: { name: r.employee.name, officeAssignment: r.employee.officeAssignment, positionTitle: r.employee.positionTitle },
+              createdAt: r.createdAt,
+              resolvedByName: r.approvedBy?.username ?? null,
+              resolvedAt: r.approvedAt,
             }))}
           />
         </div>
