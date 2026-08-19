@@ -52,7 +52,15 @@ export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/
             {employee.name} &middot; {employee.officeAssignment}
           </p>
         </div>
-        <NewMyWellnessLeaveRequestDialog />
+        <div className="flex gap-2">
+          <Link href={`/wellness-leave/blank/${employee.id}/print`}>
+            <Button type="button" variant="outline">
+              <Printer />
+              Print Blank Form
+            </Button>
+          </Link>
+          <NewMyWellnessLeaveRequestDialog />
+        </div>
       </div>
 
       <div className="flex items-center gap-2">
