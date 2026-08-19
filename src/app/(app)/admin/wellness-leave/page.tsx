@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { formatISODate } from "@/lib/period";
-import { NewWellnessLeaveRequestDialog, ApproveRejectButtons } from "./wellness-leave-dialogs";
+import { ApproveRejectButtons } from "./wellness-leave-dialogs";
 import { InitializeYearButton } from "./initialize-year-button";
 import { BalancesTable } from "./balances-table";
 import { RequestHistoryTable } from "./request-history-table";
@@ -39,16 +39,12 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Wellness Leave</h1>
-          <p className="text-sm text-muted-foreground">
-            5 days/year per COS worker — 3 for 1st Sem (Jan–Jun), 2 for 2nd Sem (Jul–Dec).
-          </p>
-        </div>
-        <NewWellnessLeaveRequestDialog
-          employees={employees.map((e) => ({ id: e.id, name: e.name, officeAssignment: e.officeAssignment }))}
-        />
+      <div>
+        <h1 className="text-2xl font-semibold">Wellness Leave</h1>
+        <p className="text-sm text-muted-foreground">
+          5 days/year per COS worker — 3 for 1st Sem (Jan–Jun), 2 for 2nd Sem (Jul–Dec). Employees file their own
+          requests; review and approve them below.
+        </p>
       </div>
 
       <div className="flex items-center gap-2">

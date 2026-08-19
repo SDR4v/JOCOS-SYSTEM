@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { formatISODate } from "@/lib/period";
 import { semesterLabel } from "@/lib/wellness-leave";
+import { NewMyWellnessLeaveRequestDialog } from "./request-dialog";
 
 export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/my-wellness-leave">) {
   const user = await requireUser();
@@ -44,11 +45,14 @@ export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold">My Wellness Leave</h1>
-        <p className="text-sm text-muted-foreground">
-          {employee.name} &middot; {employee.officeAssignment}
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold">My Wellness Leave</h1>
+          <p className="text-sm text-muted-foreground">
+            {employee.name} &middot; {employee.officeAssignment}
+          </p>
+        </div>
+        <NewMyWellnessLeaveRequestDialog />
       </div>
 
       <div className="flex items-center gap-2">

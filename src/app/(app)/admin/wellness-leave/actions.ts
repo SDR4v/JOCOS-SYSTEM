@@ -1,11 +1,10 @@
 "use server";
 
-import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
-import { datesBetween, parseISODate } from "@/lib/period";
-import { SEMESTER_ALLOTMENT, MAX_CONSECUTIVE_DAYS, getSemester } from "@/lib/wellness-leave";
+import { datesBetween } from "@/lib/period";
+import { SEMESTER_ALLOTMENT, getSemester } from "@/lib/wellness-leave";
 
 export type FormState = { error: string | null };
 
@@ -28,50 +27,6 @@ export async function initializeWellnessLeaveBalances(year: number): Promise<For
       }),
     ]),
   );
-
-  revalidatePath("/admin/wellness-leave");
-  return { error: null };
-}
-
-const requestSchema = z.object({
-  employeeId: z.string().min(1),
-  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  notes: z.string().trim().max(500).optional(),
-});
-
-export async function createWellnessLeaveRequest(_prev: FormState, formData: FormData): Promise<FormState> {
-  const admin = await requireAdmin();
-
-  const parsed = requestSchema.safeParse(Object.fromEntries(formData));
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const start = parseISODate(parsed.data.startDate);
-  const end = parseISODate(parsed.data.endDate);
-  if (end < start) return { error: "End date must be on or after the start date" };
-
-  const dates = datesBetween(start, end);
-  if (dates.length > MAX_CONSECUTIVE_DAYS) {
-    return { error: `A single Wellness Leave request can cover at most ${MAX_CONSECUTIVE_DAYS} consecutive days` };
-  }
-
-  const semester = getSemester(start);
-  if (getSemester(end) !== semester) {
-    return { error: "The request must fall entirely within one semester (Jan–Jun or Jul–Dec)" };
-  }
-
-  await prisma.wellnessLeaveRequest.create({
-    data: {
-      employeeId: parsed.data.employeeId,
-      startDate: start,
-      endDate: end,
-      daysCount: dates.length,
-      notes: parsed.data.notes || null,
-      requestedById: admin.id,
-    },
-  });
 
   revalidatePath("/admin/wellness-leave");
   return { error: null };
