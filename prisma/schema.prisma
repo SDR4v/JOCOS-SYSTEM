@@ -31,6 +31,7 @@ model User {
   approvedLeaves       WellnessLeaveRequest[] @relation("LeaveApprover")
   enteredTripAuths     TripAuthorization[]    @relation("TripAuthEnteredBy")
   biometricUploads     BiometricUpload[]      @relation("BiometricUploader")
+  reviewedDtrRequests  DtrEntryRequest[]      @relation("DtrRequestReviewer")
 }
 
 enum EmployeeStatus {
@@ -55,6 +56,7 @@ model Employee {
   wellnessLeaveBalances WellnessLeaveBalance[]
   wellnessLeaveRequests WellnessLeaveRequest[]
   tripAuthorizations    TripAuthorization[]
+  dtrEntryRequests      DtrEntryRequest[]
 
   @@index([officeAssignment])
   @@index([status])
@@ -91,6 +93,7 @@ enum AttendanceSource {
   WELLNESS_LEAVE
   TRIP_AUTHORIZATION
   MANUAL
+  EMPLOYEE_REQUEST // self-submitted by the COS worker, approved by HR
 }
 
 model AttendanceDay {
@@ -113,6 +116,33 @@ model AttendanceDay {
 
   @@unique([employeeId, date])
   @@index([date])
+}
+
+// ── Employee self-submitted DTR entries (pending HR review) ────
+
+enum DtrEntryRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model DtrEntryRequest {
+  id          String                @id @default(cuid())
+  employeeId  String
+  employee    Employee              @relation(fields: [employeeId], references: [id])
+  date        DateTime
+  code        AttendanceCode
+  lateMinutes Int                   @default(0)
+  notes       String?
+  status      DtrEntryRequestStatus @default(PENDING)
+  submittedAt DateTime              @default(now())
+
+  reviewedById String?
+  reviewedBy   User?     @relation("DtrRequestReviewer", fields: [reviewedById], references: [id])
+  reviewedAt   DateTime?
+
+  @@unique([employeeId, date])
+  @@index([status])
 }
 
 // ── Wellness Leave (COS only) ───────────────────────────────────

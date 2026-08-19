@@ -3,10 +3,12 @@ import Image from "next/image";
 import { requireUser } from "@/lib/session";
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
+import { prisma } from "@/lib/prisma";
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const isAdmin = user.role === "ADMIN";
+  const pendingDtrRequests = isAdmin ? await prisma.dtrEntryRequest.count({ where: { status: "PENDING" } }) : 0;
 
   return (
     <div className="flex min-h-screen flex-col">
@@ -27,6 +29,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
                 </Link>
                 <Link href="/admin/dtr" className="text-muted-foreground hover:text-foreground">
                   DTR
+                </Link>
+                <Link href="/admin/dtr-requests" className="text-muted-foreground hover:text-foreground">
+                  DTR Requests{pendingDtrRequests > 0 && ` (${pendingDtrRequests})`}
                 </Link>
                 <Link href="/admin/payroll" className="text-muted-foreground hover:text-foreground">
                   Payroll Report

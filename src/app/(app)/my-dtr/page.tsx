@@ -1,11 +1,11 @@
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { computePayroll } from "@/lib/payroll";
 import { displayCodeForDay } from "@/lib/attendance-codes";
-import { getHalfMonthRange, formatISODate, formatDisplayDate, halfLabel, type Half } from "@/lib/period";
+import { getHalfMonthRange, formatISODate, halfLabel, type Half } from "@/lib/period";
 import { MyDtrFilters } from "./my-dtr-filters";
+import { MyDtrForm, type MyDtrRow } from "./my-dtr-form";
 
 export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) {
   const user = await requireUser();
@@ -30,18 +30,40 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
   const employee = await prisma.employee.findUniqueOrThrow({ where: { id: user.employeeId } });
   const { start, end, dates } = getHalfMonthRange(year, month, half);
 
-  const [days, rate] = await Promise.all([
+  const [days, requests, rate] = await Promise.all([
     prisma.attendanceDay.findMany({ where: { employeeId: employee.id, date: { gte: start, lte: end } } }),
+    prisma.dtrEntryRequest.findMany({ where: { employeeId: employee.id, date: { gte: start, lte: end } } }),
     prisma.salaryGradeRate.findUnique({
       where: { year_salaryGrade: { year, salaryGrade: employee.salaryGrade } },
     }),
   ]);
 
   const dayMap = new Map(days.map((day) => [formatISODate(day.date), day]));
+  const requestMap = new Map(requests.map((r) => [formatISODate(r.date), r]));
+
   const totals = computePayroll(
     days.map((d) => ({ dayCredit: d.dayCredit, lateMinutes: d.lateMinutes })),
     rate?.monthlyAmount ?? 0,
   );
+
+  const rows: MyDtrRow[] = dates.map((date) => {
+    const iso = formatISODate(date);
+    const day = dayMap.get(iso);
+    const officialCode = day?.code ?? "UNSET";
+    const officialLateMinutes = day?.lateMinutes ?? 0;
+
+    const request = requestMap.get(iso);
+    const usePending = request?.status === "PENDING";
+
+    return {
+      date: iso,
+      officialLabel: displayCodeForDay(officialCode, officialLateMinutes),
+      proposedCode: usePending ? request.code : officialCode,
+      proposedLateMinutes: usePending ? request.lateMinutes : officialLateMinutes,
+      proposedNotes: usePending ? (request.notes ?? "") : (day?.notes ?? ""),
+      pendingStatus: request?.status === "PENDING" ? "PENDING" : request?.status === "REJECTED" ? "REJECTED" : null,
+    };
+  });
 
   return (
     <div className="space-y-4">
@@ -69,33 +91,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
         </CardContent>
       </Card>
 
-      <div className="rounded-lg border bg-white">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Code</TableHead>
-              <TableHead>Late/Undertime (min)</TableHead>
-              <TableHead>Notes</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {dates.map((date) => {
-              const iso = formatISODate(date);
-              const day = dayMap.get(iso);
-              const code = day?.code ?? "UNSET";
-              return (
-                <TableRow key={iso}>
-                  <TableCell className="whitespace-nowrap text-sm">{formatDisplayDate(iso)}</TableCell>
-                  <TableCell>{displayCodeForDay(code, day?.lateMinutes ?? 0)}</TableCell>
-                  <TableCell>{code === "LATE" ? day?.lateMinutes ?? 0 : "—"}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground">{day?.notes ?? ""}</TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-      </div>
+      <MyDtrForm key={`${year}-${month}-${half}`} initialRows={rows} />
     </div>
   );
 }
