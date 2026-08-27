@@ -1,7 +1,9 @@
+import Link from "next/link";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { computePayroll, type PayrollTotals } from "@/lib/payroll";
 import { getHalfMonthRange, halfLabel, MONTH_NAMES } from "@/lib/period";
 import { PayrollFilters } from "./payroll-filters";
@@ -17,12 +19,13 @@ export default async function PayrollPage({ searchParams }: PageProps<"/admin/pa
   const month = clampMonth(Number(params.month) || now.getMonth() + 1);
   const half: PayrollHalf = params.half === "1" || params.half === "2" ? params.half : "combined";
 
-  const employees = await prisma.employee.findMany({
-    where: { status: "ACTIVE" },
-    orderBy: [{ officeAssignment: "asc" }, { name: "asc" }],
-  });
-
-  const rates = await prisma.salaryGradeRate.findMany({ where: { year } });
+  const [employees, rates] = await Promise.all([
+    prisma.employee.findMany({
+      where: { status: "ACTIVE" },
+      orderBy: [{ officeAssignment: "asc" }, { name: "asc" }],
+    }),
+    prisma.salaryGradeRate.findMany({ where: { year } }),
+  ]);
   const rateMap = new Map(rates.map((r) => [r.salaryGrade, r.monthlyAmount]));
 
   const range1 = getHalfMonthRange(year, month, 1);
@@ -77,13 +80,20 @@ export default async function PayrollPage({ searchParams }: PageProps<"/admin/pa
   return (
     <div className="space-y-4">
       <div>
-        <h1 className="text-2xl font-semibold">Payroll Report</h1>
+        <h1 className="text-2xl font-semibold">Daily Rate Computation</h1>
         <p className="text-sm text-muted-foreground">
           {periodLabel} {year} &middot; JOCOS computation, grouped by office assignment.
         </p>
       </div>
 
-      <PayrollFilters year={year} month={month} half={half} />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <PayrollFilters year={year} month={month} half={half} />
+        <Link href={`/admin/payroll/print?year=${year}&month=${month}&half=${half}`}>
+          <Button type="button" variant="outline">
+            Print / JOCOS Report
+          </Button>
+        </Link>
+      </div>
 
       {rows.length === 0 && <p className="text-sm text-muted-foreground">No active employees yet.</p>}
 
