@@ -2,26 +2,35 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { getMonthRange, formatISODate, MONTH_NAMES } from "@/lib/period";
-import { formatTimeHHMM, minutesToHHMM, resolveSchedule, MANUAL_OVERRIDE_CODES } from "@/lib/dtr-time";
+import { getMonthRange, formatISODate, halfLabel, MONTH_NAMES, type Half } from "@/lib/period";
+import { formatTimeHHMM, formatScheduleSummary, resolveSchedule, MANUAL_OVERRIDE_CODES } from "@/lib/dtr-time";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { PrintButton } from "./print-button";
+import { DownloadPdfButton } from "@/components/download-pdf-button";
 
 const MANUAL_OVERRIDE_SET = new Set<string>(MANUAL_OVERRIDE_CODES);
+
+function matchesHalf(date: Date, half: Half): boolean {
+  return half === 1 ? date.getUTCDate() <= 15 : date.getUTCDate() >= 16;
+}
 
 type AttendanceDayRow = Awaited<ReturnType<typeof prisma.attendanceDay.findMany>>[number];
 
 export default async function DtrPrintPage({
   params,
+  searchParams,
 }: PageProps<"/dtr/[employeeId]/[year]/[month]/print">) {
   const user = await requireUser();
   const { employeeId, year: yearParam, month: monthParam } = await params;
+  const sp = await searchParams;
 
   if (user.role !== "ADMIN" && employeeId !== user.employeeId) notFound();
 
   const year = Number(yearParam);
   const month = Number(monthParam);
   if (!Number.isInteger(year) || !Number.isInteger(month) || month < 1 || month > 12) notFound();
+
+  const half: Half | undefined = sp.half === "1" ? 1 : sp.half === "2" ? 2 : undefined;
 
   const employee = await prisma.employee.findUnique({
     where: { id: employeeId },
@@ -32,12 +41,7 @@ export default async function DtrPrintPage({
   const officeHoursLabel =
     employee.scheduleMode === "PER_DAY"
       ? "Varies by day"
-      : (() => {
-          const schedule = resolveSchedule(employee, 1); // Monday — representative for a uniform CUSTOM/STANDARD schedule
-          return schedule.session2
-            ? `${minutesToHHMM(schedule.session1.start)}–${minutesToHHMM(schedule.session1.end)} & ${minutesToHHMM(schedule.session2.start)}–${minutesToHHMM(schedule.session2.end)}`
-            : `${minutesToHHMM(schedule.session1.start)}–${minutesToHHMM(schedule.session1.end)} (continuous)`;
-        })();
+      : formatScheduleSummary(resolveSchedule(employee, 1)); // Monday — representative for a uniform CUSTOM/STANDARD schedule
 
   const { dates } = getMonthRange(year, month);
   const days = await prisma.attendanceDay.findMany({
@@ -45,42 +49,51 @@ export default async function DtrPrintPage({
   });
   const dayMap = new Map(days.map((d) => [formatISODate(d.date), d]));
 
-  const totalUndertimeMinutes = days.reduce((sum, d) => sum + d.lateMinutes, 0);
+  const relevantDays = half ? days.filter((d) => matchesHalf(d.date, half)) : days;
+  const totalUndertimeMinutes = relevantDays.reduce((sum, d) => sum + d.lateMinutes, 0);
   const totalHours = Math.floor(totalUndertimeMinutes / 60);
   const totalMinutes = totalUndertimeMinutes % 60;
 
   return (
     <div className="space-y-4">
-      <style>{"@media print { @page { size: landscape; margin: 0.3in; } }"}</style>
+      <style>{"@media print { @page { size: portrait; margin: 0.3in; } }"}</style>
 
       <div className="flex items-center justify-between print:hidden">
         <p className="text-sm text-muted-foreground">
           Printable Daily Time Record (CS Form No. 48) — two copies per sheet, cut down the middle
         </p>
-        <PrintButton />
+        <div className="flex gap-2">
+          <DownloadPdfButton
+            targetId="dtr-print-content"
+            filename={`DTR-${employee.name}-${MONTH_NAMES[month - 1]}-${year}.pdf`}
+          />
+          <PrintButton />
+        </div>
       </div>
 
-      <div className="mx-auto flex w-fit gap-0 bg-white print:mx-0 print:w-full print:justify-between">
-        <div className="border-r border-dashed border-gray-400 pr-6 print:flex-1">
+      <div id="dtr-print-content" className="mx-auto flex w-fit gap-0 bg-white print:mx-0 print:w-full print:justify-between">
+        <div className="flex justify-center border-r border-dashed border-gray-400 pr-6 print:flex-1">
           <DtrFormCopy
             employeeName={employee.name}
             officeAssignment={employee.officeAssignment}
             officeHoursLabel={officeHoursLabel}
             year={year}
             month={month}
+            half={half}
             dates={dates}
             dayMap={dayMap}
             totalHours={totalHours}
             totalMinutes={totalMinutes}
           />
         </div>
-        <div className="pl-6 print:flex-1">
+        <div className="flex justify-center pl-6 print:flex-1">
           <DtrFormCopy
             employeeName={employee.name}
             officeAssignment={employee.officeAssignment}
             officeHoursLabel={officeHoursLabel}
             year={year}
             month={month}
+            half={half}
             dates={dates}
             dayMap={dayMap}
             totalHours={totalHours}
@@ -100,6 +113,7 @@ function DtrFormCopy({
   officeHoursLabel,
   year,
   month,
+  half,
   dates,
   dayMap,
   totalHours,
@@ -110,13 +124,14 @@ function DtrFormCopy({
   officeHoursLabel: string;
   year: number;
   month: number;
+  half?: Half;
   dates: Date[];
   dayMap: Map<string, AttendanceDayRow>;
   totalHours: number;
   totalMinutes: number;
 }) {
   return (
-    <div className="w-[340px] text-[11px] leading-tight text-black">
+    <div className="w-[340px] text-[11px] leading-tight text-black print:w-full">
       <p className="text-right text-[10px] font-medium text-primary">Civil Service Form No. 48</p>
 
       <div className="mb-2 flex items-center gap-1.5">
@@ -135,6 +150,7 @@ function DtrFormCopy({
           <span className="italic">For the month of</span>{" "}
           <span className="border-b border-black font-medium">
             {MONTH_NAMES[month - 1]} {year}
+            {half ? ` — ${halfLabel(half)}` : ""}
           </span>
         </p>
         <p>
@@ -175,10 +191,13 @@ function DtrFormCopy({
         <tbody>
           {dates.map((date) => {
             const iso = formatISODate(date);
-            const day = dayMap.get(iso);
+            const day = !half || matchesHalf(date, half) ? dayMap.get(iso) : undefined;
+            const isFromDuty = !!day?.amArrivalFromDuty;
             const isOverride = day ? MANUAL_OVERRIDE_SET.has(day.code) : false;
             const isSpecial =
-              day && (isOverride || day.code === "WELLNESS_LEAVE" || day.code === "TRIP_AUTHORIZATION" || day.code === "ABSENT");
+              !isFromDuty &&
+              day &&
+              (isOverride || day.code === "WELLNESS_LEAVE" || day.code === "TRIP_AUTHORIZATION" || day.code === "ABSENT");
 
             return (
               <tr key={iso}>
@@ -189,8 +208,8 @@ function DtrFormCopy({
                   </td>
                 ) : (
                   <>
-                    <td className="border border-black py-px px-0.5 text-center">
-                      {day?.amArrival ? formatTimeHHMM(day.amArrival) : ""}
+                    <td className={`border border-black py-px px-0.5 text-center ${isFromDuty ? "italic" : ""}`}>
+                      {isFromDuty ? "From Duty" : day?.amArrival ? formatTimeHHMM(day.amArrival) : ""}
                     </td>
                     <td className="border border-black py-px px-0.5 text-center">
                       {day?.amDeparture ? formatTimeHHMM(day.amDeparture) : ""}

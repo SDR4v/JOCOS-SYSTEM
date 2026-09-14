@@ -18,7 +18,7 @@ export function PullOutButton({ id }: { id: string }) {
   }
 
   return (
-    <Button type="button" variant="outline" size="sm" disabled={pending} onClick={pullOut}>
+    <Button type="button" variant="outline" size="sm" loading={pending} onClick={pullOut}>
       <Undo2 />
       Pull Out
     </Button>

@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { TriangleAlert } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -13,13 +14,24 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { parseISODate } from "@/lib/period";
+import { getSemester, semesterLabel, type Semester } from "@/lib/wellness-leave";
 import { createMyWellnessLeaveRequest, type FormState } from "./actions";
 
 const initialState: FormState = { error: null };
 
-export function NewMyWellnessLeaveRequestDialog() {
+export function NewMyWellnessLeaveRequestDialog({
+  remaining,
+}: {
+  remaining: Record<Semester, number | null>;
+}) {
   const [open, setOpen] = useState(false);
+  const [startDate, setStartDate] = useState("");
   const [pending, startTransition] = useTransition();
+
+  const semester = startDate ? getSemester(parseISODate(startDate)) : null;
+  const semesterRemaining = semester ? remaining[semester] : null;
+  const outOfBalance = semesterRemaining !== null && semesterRemaining <= 0;
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
@@ -27,6 +39,7 @@ export function NewMyWellnessLeaveRequestDialog() {
       if (!result.error) {
         toast.success("Wellness Leave request submitted for HR review");
         setOpen(false);
+        setStartDate("");
       } else {
         toast.error(result.error);
       }
@@ -44,7 +57,14 @@ export function NewMyWellnessLeaveRequestDialog() {
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="startDate">Start Date</Label>
-              <Input id="startDate" name="startDate" type="date" required />
+              <Input
+                id="startDate"
+                name="startDate"
+                type="date"
+                required
+                value={startDate}
+                onChange={(e) => setStartDate(e.target.value)}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="endDate">End Date</Label>
@@ -52,12 +72,18 @@ export function NewMyWellnessLeaveRequestDialog() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground">At most 3 consecutive days, within a single semester.</p>
+          {outOfBalance && semester && (
+            <p className="flex items-start gap-1.5 text-xs text-destructive">
+              <TriangleAlert className="mt-0.5 size-3.5 shrink-0" />
+              No Wellness Leave days remaining for {semesterLabel(semester)} — this request can&apos;t be filed.
+            </p>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="notes">Notes (optional)</Label>
             <Input id="notes" name="notes" />
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" loading={pending} disabled={outOfBalance}>
               {pending ? "Submitting..." : "Submit Request"}
             </Button>
           </DialogFooter>

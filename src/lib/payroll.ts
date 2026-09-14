@@ -44,3 +44,11 @@ export function computePayroll(days: PayrollDayInput[], monthlyAmount: number): 
 function round2(value: number): number {
   return Math.round(value * 100) / 100;
 }
+
+// Shared between the payroll report and its print view — the print report
+// omits the ₱ symbol per cell since the page's own header already makes the
+// currency clear.
+export function formatPeso(amount: number, withSymbol = true): string {
+  const formatted = amount.toLocaleString(undefined, { minimumFractionDigits: 2 });
+  return withSymbol ? `₱${formatted}` : formatted;
+}

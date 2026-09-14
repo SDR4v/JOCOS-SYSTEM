@@ -19,6 +19,7 @@ export const ATTENDANCE_CODES: AttendanceCodeMeta[] = [
   { code: "WORK_SUSPENDED", label: "Work suspended", shortLabel: "WS", defaultDayCredit: 1, takesLateMinutes: false },
   { code: "WELLNESS_LEAVE", label: "Wellness Leave", shortLabel: "WL", defaultDayCredit: 1, takesLateMinutes: false },
   { code: "TRIP_AUTHORIZATION", label: "Trip Authorization", shortLabel: "TA", defaultDayCredit: 1, takesLateMinutes: false },
+  { code: "HOLIDAY", label: "Holiday (no work, no pay)", shortLabel: "H", defaultDayCredit: 0, takesLateMinutes: false },
   { code: "UNSET", label: "Not yet recorded", shortLabel: "—", defaultDayCredit: 0, takesLateMinutes: false },
 ];
 

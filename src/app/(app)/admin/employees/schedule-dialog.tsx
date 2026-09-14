@@ -64,7 +64,7 @@ export function ScheduleDialog({
         <div className="space-y-4">
           <ScheduleFields value={value} onChange={updateValue} />
           <DialogFooter>
-            <Button type="button" onClick={handleSave} disabled={pending}>
+            <Button type="button" onClick={handleSave} loading={pending}>
               {pending ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>

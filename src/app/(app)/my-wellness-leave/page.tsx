@@ -55,6 +55,10 @@ export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/
 
   const sem1 = balances.find((b) => b.semester === 1);
   const sem2 = balances.find((b) => b.semester === 2);
+  const remaining = {
+    1: sem1 ? sem1.allotted - sem1.used : null,
+    2: sem2 ? sem2.allotted - sem2.used : null,
+  };
 
   return (
     <div className="space-y-4">
@@ -72,7 +76,7 @@ export default async function MyWellnessLeavePage({ searchParams }: PageProps<"/
               Print Blank Form
             </Button>
           </Link>
-          <NewMyWellnessLeaveRequestDialog />
+          <NewMyWellnessLeaveRequestDialog remaining={remaining} />
         </div>
       </div>
 
@@ -172,17 +176,22 @@ function SemesterCard({
       <CardContent className="grid grid-cols-3 gap-4">
         <Stat label="Allotted" value={balance ? String(balance.allotted) : "—"} />
         <Stat label="Used" value={balance ? String(balance.used) : "—"} />
-        <Stat label="Remaining" value={remaining !== null ? String(remaining) : "—"} highlight />
+        <Stat
+          label="Remaining"
+          value={remaining !== null ? String(remaining) : "—"}
+          tone={remaining !== null && remaining <= 0 ? "warning" : "highlight"}
+        />
       </CardContent>
     </Card>
   );
 }
 
-function Stat({ label, value, highlight }: { label: string; value: string; highlight?: boolean }) {
+function Stat({ label, value, tone }: { label: string; value: string; tone?: "highlight" | "warning" }) {
+  const toneClass = tone === "warning" ? "text-destructive" : tone === "highlight" ? "text-primary" : "";
   return (
     <div>
       <div className="text-xs text-muted-foreground">{label}</div>
-      <div className={highlight ? "text-lg font-semibold text-primary" : "text-lg font-semibold"}>{value}</div>
+      <div className={`text-lg font-semibold ${toneClass}`}>{value}</div>
     </div>
   );
 }

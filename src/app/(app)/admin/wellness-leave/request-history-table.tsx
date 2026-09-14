@@ -17,6 +17,7 @@ import {
 } from "@/lib/wellness-leave";
 import { ViewWellnessLeaveRequestDialog } from "./view-request-dialog";
 import { MarkTakenButton } from "./mark-taken-button";
+import { DeleteRequestButton } from "./delete-restore-buttons";
 
 type RequestStatus = "ACTIVE" | "CANCELLED";
 
@@ -172,6 +173,7 @@ export function RequestHistoryTable({ requests }: { requests: WellnessLeaveReque
                       Print
                     </Button>
                   </Link>
+                  <DeleteRequestButton id={request.id} />
                 </TableCell>
               </TableRow>
             ))}

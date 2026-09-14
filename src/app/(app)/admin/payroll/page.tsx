@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { computePayroll, type PayrollTotals } from "@/lib/payroll";
-import { getHalfMonthRange, halfLabel, MONTH_NAMES } from "@/lib/period";
+import { computePayroll, formatPeso, type PayrollTotals } from "@/lib/payroll";
+import { getHalfMonthRange, halfLabel, MONTH_NAMES, clampMonth } from "@/lib/period";
 import { PayrollFilters } from "./payroll-filters";
 
 type PayrollHalf = "1" | "2" | "combined";
@@ -15,9 +16,21 @@ export default async function PayrollPage({ searchParams }: PageProps<"/admin/pa
 
   const params = await searchParams;
   const now = new Date();
-  const year = Number(params.year) || now.getFullYear();
-  const month = clampMonth(Number(params.month) || now.getMonth() + 1);
-  const half: PayrollHalf = params.half === "1" || params.half === "2" ? params.half : "combined";
+
+  // Falls back to the last period viewed (remembered via cookie, set by
+  // PayrollFilters) rather than always resetting to the current month —
+  // the nav's "Daily Rate Computation" link has no period of its own to carry over.
+  const lastPeriod = (await cookies()).get("jocos-last-payroll-period")?.value;
+  const [lastYear, lastMonth, lastHalf] = lastPeriod?.split(":") ?? [];
+
+  const year = Number(params.year) || Number(lastYear) || now.getFullYear();
+  const month = clampMonth(Number(params.month) || Number(lastMonth) || now.getMonth() + 1);
+  const half: PayrollHalf =
+    params.half === "1" || params.half === "2" || params.half === "combined"
+      ? params.half
+      : lastHalf === "1" || lastHalf === "2" || lastHalf === "combined"
+        ? lastHalf
+        : "combined";
 
   const [employees, rates] = await Promise.all([
     prisma.employee.findMany({
@@ -125,9 +138,9 @@ export default async function PayrollPage({ searchParams }: PageProps<"/admin/pa
                       )}
                     </TableCell>
                     <TableCell className="text-right">{totals.totalDaysRendered.toFixed(1)}</TableCell>
-                    <TableCell className="text-right">{peso(totals.grossAmount)}</TableCell>
-                    <TableCell className="text-right">{peso(totals.deduction)}</TableCell>
-                    <TableCell className="text-right font-medium">{peso(totals.netAmount)}</TableCell>
+                    <TableCell className="text-right">{formatPeso(totals.grossAmount)}</TableCell>
+                    <TableCell className="text-right">{formatPeso(totals.deduction)}</TableCell>
+                    <TableCell className="text-right font-medium">{formatPeso(totals.netAmount)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -144,9 +157,9 @@ export default async function PayrollPage({ searchParams }: PageProps<"/admin/pa
                 <TableCell className="font-semibold">Grand Total</TableCell>
                 <TableCell />
                 <TableCell className="text-right font-semibold">{grandTotal.totalDaysRendered.toFixed(1)}</TableCell>
-                <TableCell className="text-right font-semibold">{peso(grandTotal.grossAmount)}</TableCell>
-                <TableCell className="text-right font-semibold">{peso(grandTotal.deduction)}</TableCell>
-                <TableCell className="text-right font-semibold text-primary">{peso(grandTotal.netAmount)}</TableCell>
+                <TableCell className="text-right font-semibold">{formatPeso(grandTotal.grossAmount)}</TableCell>
+                <TableCell className="text-right font-semibold">{formatPeso(grandTotal.deduction)}</TableCell>
+                <TableCell className="text-right font-semibold text-primary">{formatPeso(grandTotal.netAmount)}</TableCell>
               </TableRow>
             </TableBody>
           </Table>
@@ -154,14 +167,4 @@ export default async function PayrollPage({ searchParams }: PageProps<"/admin/pa
       )}
     </div>
   );
-}
-
-function peso(amount: number): string {
-  return `₱${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-}
-
-function clampMonth(month: number): number {
-  if (Number.isNaN(month) || month < 1) return 1;
-  if (month > 12) return 12;
-  return month;
 }

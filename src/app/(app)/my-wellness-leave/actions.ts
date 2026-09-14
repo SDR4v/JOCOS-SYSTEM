@@ -4,8 +4,10 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { datesBetween, parseISODate } from "@/lib/period";
+import { datesBetween, parseISODate, formatFullDate } from "@/lib/period";
 import { MAX_CONSECUTIVE_DAYS, getSemester, canPullOutWellnessLeave } from "@/lib/wellness-leave";
+import { logAudit } from "@/lib/audit";
+import { notifyAdmins } from "@/lib/notify";
 
 export type FormState = { error: string | null };
 
@@ -63,8 +65,8 @@ export async function createMyWellnessLeaveRequest(_prev: FormState, formData: F
     return { error: `Only ${remaining} Wellness Leave day(s) remaining this semester` };
   }
 
-  await prisma.$transaction([
-    prisma.wellnessLeaveRequest.create({
+  const request = await prisma.$transaction(async (tx) => {
+    const created = await tx.wellnessLeaveRequest.create({
       data: {
         employeeId,
         startDate: start,
@@ -73,13 +75,13 @@ export async function createMyWellnessLeaveRequest(_prev: FormState, formData: F
         notes: parsed.data.notes || null,
         requestedById: user.id,
       },
-    }),
-    prisma.wellnessLeaveBalance.update({
+    });
+    await tx.wellnessLeaveBalance.update({
       where: { id: balance.id },
       data: { used: { increment: dates.length } },
-    }),
-    ...dates.map((date) =>
-      prisma.attendanceDay.upsert({
+    });
+    for (const date of dates) {
+      await tx.attendanceDay.upsert({
         where: { employeeId_date: { employeeId, date } },
         update: {
           code: "WELLNESS_LEAVE",
@@ -97,9 +99,20 @@ export async function createMyWellnessLeaveRequest(_prev: FormState, formData: F
           source: "WELLNESS_LEAVE",
           editedById: user.id,
         },
-      }),
-    ),
-  ]);
+      });
+    }
+    return created;
+  });
+
+  const period = `${formatFullDate(start)}–${formatFullDate(end)}`;
+  await logAudit({
+    actorId: user.id,
+    entityType: "WellnessLeaveRequest",
+    entityId: request.id,
+    action: "CREATE",
+    summary: `${user.name} filed Wellness Leave for ${period} (${dates.length} day${dates.length > 1 ? "s" : ""})`,
+  });
+  await notifyAdmins(`${user.name} filed Wellness Leave for ${period}`, "/admin/wellness-leave");
 
   revalidateWellnessLeavePaths();
   return { error: null };
@@ -146,6 +159,16 @@ export async function pullOutMyWellnessLeaveRequest(id: string): Promise<FormSta
       where: { employeeId: request.employeeId, date: { in: dates }, source: "WELLNESS_LEAVE" },
     }),
   ]);
+
+  const period = `${formatFullDate(request.startDate)}–${formatFullDate(request.endDate)}`;
+  await logAudit({
+    actorId: user.id,
+    entityType: "WellnessLeaveRequest",
+    entityId: request.id,
+    action: "UPDATE",
+    summary: `${user.name} pulled out Wellness Leave for ${period}`,
+  });
+  await notifyAdmins(`${user.name} pulled out Wellness Leave for ${period}`, "/admin/wellness-leave");
 
   revalidateWellnessLeavePaths();
   return { error: null };

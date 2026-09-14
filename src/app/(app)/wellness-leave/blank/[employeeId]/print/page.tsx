@@ -1,9 +1,10 @@
 import { notFound } from "next/navigation";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
-import { getDailyRate } from "@/lib/payroll";
+import { getDailyRate, formatPeso as peso } from "@/lib/payroll";
 import { PrintButton } from "../../../print-button";
-import { WellnessLeaveApplicationForm, peso } from "../../../print-form";
+import { DownloadPdfButton } from "@/components/download-pdf-button";
+import { WellnessLeaveApplicationForm } from "../../../print-form";
 
 export default async function BlankWellnessLeavePrintPage({
   params,
@@ -40,7 +41,10 @@ export default async function BlankWellnessLeavePrintPage({
         <p className="text-sm text-muted-foreground">
           Blank Wellness Leave application for {employee.name} — dates and signatures to be filled in by hand
         </p>
-        <PrintButton />
+        <div className="flex gap-2">
+          <DownloadPdfButton targetId="wellness-leave-print-content" filename={`Wellness-Leave-Blank-${employee.name}.pdf`} />
+          <PrintButton />
+        </div>
       </div>
 
       <WellnessLeaveApplicationForm

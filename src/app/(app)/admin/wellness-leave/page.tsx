@@ -6,6 +6,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { InitializeYearButton } from "./initialize-year-button";
 import { BalancesTable } from "./balances-table";
 import { RequestHistoryTable } from "./request-history-table";
+import { BinTable } from "./bin-table";
 
 export default async function WellnessLeavePage({ searchParams }: PageProps<"/admin/wellness-leave">) {
   await requireAdmin();
@@ -19,12 +20,19 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
     orderBy: [{ officeAssignment: "asc" }, { name: "asc" }],
   });
 
-  const [balances, requests] = await Promise.all([
+  const yearRange = { gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) };
+
+  const [balances, requests, binnedRequests] = await Promise.all([
     prisma.wellnessLeaveBalance.findMany({ where: { year } }),
     prisma.wellnessLeaveRequest.findMany({
-      where: { startDate: { gte: new Date(Date.UTC(year, 0, 1)), lte: new Date(Date.UTC(year, 11, 31)) } },
+      where: { startDate: yearRange, deletedAt: null },
       include: { employee: true, cancelledBy: true, confirmedTakenBy: true },
       orderBy: { startDate: "desc" },
+    }),
+    prisma.wellnessLeaveRequest.findMany({
+      where: { startDate: yearRange, deletedAt: { not: null } },
+      include: { employee: true, deletedBy: true },
+      orderBy: { deletedAt: "desc" },
     }),
   ]);
 
@@ -36,7 +44,7 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
       <div>
         <h1 className="text-2xl font-semibold">Wellness Leave</h1>
         <p className="text-sm text-muted-foreground">
-          5 days/year per COS worker — 3 for 1st Sem (Jan–Jun), 2 for 2nd Sem (Jul–Dec). Employees file their own
+          5 days/year per COS worker — 2 for 1st Sem (Jan–Jun), 3 for 2nd Sem (Jul–Dec). Employees file their own
           requests and they take effect right away — no approval needed. Track below whether each one is upcoming,
           already taken, or was pulled out.
         </p>
@@ -56,6 +64,7 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
         <TabsList>
           <TabsTrigger value="requests">Requests</TabsTrigger>
           <TabsTrigger value="balances">Balances</TabsTrigger>
+          <TabsTrigger value="bin">Bin{binnedRequests.length > 0 ? ` (${binnedRequests.length})` : ""}</TabsTrigger>
         </TabsList>
 
         <TabsContent value="requests" className="space-y-2 pt-2">
@@ -89,7 +98,7 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
           {!initialized ? (
             <p className="text-sm text-muted-foreground">
               No Wellness Leave balances have been set up for {year} yet. Click &quot;Initialize {year}&quot; to grant
-              every active employee their 3/2-day semester buckets.
+              every active employee their 2/3-day semester buckets.
             </p>
           ) : (
             <BalancesTable
@@ -97,6 +106,26 @@ export default async function WellnessLeavePage({ searchParams }: PageProps<"/ad
               balanceMap={balanceMap}
             />
           )}
+        </TabsContent>
+
+        <TabsContent value="bin" className="space-y-2 pt-2">
+          <div>
+            <h2 className="text-sm font-semibold text-muted-foreground">Bin — {year}</h2>
+            <p className="text-xs text-muted-foreground">
+              Deleted requests stay here — restore one to bring it back into view.
+            </p>
+          </div>
+          <BinTable
+            requests={binnedRequests.map((r) => ({
+              id: r.id,
+              startDate: r.startDate,
+              endDate: r.endDate,
+              daysCount: r.daysCount,
+              employee: { name: r.employee.name },
+              deletedByName: r.deletedBy?.username ?? null,
+              deletedAt: r.deletedAt!,
+            }))}
+          />
         </TabsContent>
       </Tabs>
     </div>

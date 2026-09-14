@@ -1,13 +1,11 @@
-import Link from "next/link";
-import { Printer } from "lucide-react";
 import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { computePayroll } from "@/lib/payroll";
+import { computePayroll, formatPeso } from "@/lib/payroll";
 import { displayCodeForDay } from "@/lib/attendance-codes";
-import { getHalfMonthRange, formatISODate, halfLabel, type Half } from "@/lib/period";
+import { getHalfMonthRange, formatISODate, halfLabel, clampMonth, type Half } from "@/lib/period";
 import { formatTimeHHMM, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
+import { reviewEmployeePunches } from "@/lib/biometric-review";
 import { MyDtrFilters } from "./my-dtr-filters";
 import { MyDtrForm, type MyDtrRow } from "./my-dtr-form";
 import { MyScheduleDialog } from "./my-schedule-dialog";
@@ -39,10 +37,25 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
     include: { daySchedules: true },
   });
   const { start, end, dates } = getHalfMonthRange(year, month, half);
+  // AttendanceDay/DtrEntryRequest dates are stored midnight-anchored, so
+  // `end` (midnight of the period's last day) bounds them correctly — but a
+  // PunchRecord's timestamp carries a real time of day, which would fall
+  // just past that midnight and get excluded. Push the punch query's upper
+  // bound to the start of the following day instead.
+  const punchRangeEnd = new Date(end.getTime() + 24 * 60 * 60 * 1000);
 
-  const [days, requests, rate] = await Promise.all([
+  const [days, requests, punches, rate] = await Promise.all([
     prisma.attendanceDay.findMany({ where: { employeeId: employee.id, date: { gte: start, lte: end } } }),
     prisma.dtrEntryRequest.findMany({ where: { employeeId: employee.id, date: { gte: start, lte: end } } }),
+    prisma.punchRecord.findMany({
+      where: {
+        employeeId: employee.id,
+        isDuplicate: false,
+        timestamp: { gte: start, lt: punchRangeEnd },
+        biometricUpload: { status: "REVIEWED" },
+      },
+      select: { timestamp: true },
+    }),
     prisma.salaryGradeRate.findUnique({
       where: { year_salaryGrade: { year, salaryGrade: employee.salaryGrade } },
     }),
@@ -50,6 +63,13 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
 
   const dayMap = new Map(days.map((day) => [formatISODate(day.date), day]));
   const requestMap = new Map(requests.map((r) => [formatISODate(r.date), r]));
+  // A day only ever gets a biometric pre-fill when NOTHING else already
+  // exists for it (see the `!day && !request` check below) — this is purely
+  // a default the employee sees and can edit, never a silent overwrite of an
+  // official record or an in-flight request.
+  const biometricByIso = new Map(
+    reviewEmployeePunches(employee, punches.map((p) => p.timestamp)).map((d) => [d.iso, d]),
+  );
 
   const totals = computePayroll(
     days.map((d) => ({ dayCredit: d.dayCredit, lateMinutes: d.lateMinutes })),
@@ -63,26 +83,56 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
     const officialLateMinutes = day?.lateMinutes ?? 0;
 
     const request = requestMap.get(iso);
-    const usePending = request?.status === "PENDING";
-    const source = usePending ? request : day;
-    const isManualOverride = usePending
+    // Show the request's own values (not just the official record) whenever
+    // it's still awaiting review OR was rejected — a rejected day's original
+    // submission stays visible so the employee can resubmit it as-is.
+    const useRequestData = request?.status === "PENDING" || request?.status === "REJECTED";
+    const source = useRequestData ? request : day;
+    const isManualOverride = useRequestData
       ? !!request.overrideCode
       : day
         ? MANUAL_OVERRIDE_SET.has(day.code)
         : false;
 
+    // Only offered when the day is otherwise untouched (see biometricByIso
+    // above) — a default the employee still has to check and Submit
+    // themselves, never a stand-in for an official record or a request.
+    const biometricDay = !day && !request ? biometricByIso.get(iso) : undefined;
+    const biometricTimes = biometricDay?.classification.kind === "confident" ? biometricDay.classification : null;
+
+    const hasRecord = !!day || !!request;
+    const isWeekend = date.getUTCDay() === 0 || date.getUTCDay() === 6;
+    const defaultOverride: ManualOverrideCode | "" = hasRecord || biometricTimes ? "" : isWeekend ? "REST_DAY" : "";
+
+    function pickTime(fromRecord: Date | null | undefined, fromBiometric: Date | null | undefined): string {
+      if (isManualOverride) return "";
+      if (fromRecord) return formatTimeHHMM(fromRecord);
+      if (fromBiometric) return formatTimeHHMM(fromBiometric);
+      return "";
+    }
+
     return {
       date: iso,
       officialLabel: displayCodeForDay(officialCode, officialLateMinutes),
-      amArrival: !isManualOverride && source?.amArrival ? formatTimeHHMM(source.amArrival) : "",
-      amDeparture: !isManualOverride && source?.amDeparture ? formatTimeHHMM(source.amDeparture) : "",
-      pmArrival: !isManualOverride && source?.pmArrival ? formatTimeHHMM(source.pmArrival) : "",
-      pmDeparture: !isManualOverride && source?.pmDeparture ? formatTimeHHMM(source.pmDeparture) : "",
+      amArrival: pickTime(source?.amArrival, biometricTimes?.amArrival),
+      amDeparture: pickTime(source?.amDeparture, biometricTimes?.amDeparture),
+      pmArrival: pickTime(source?.pmArrival, biometricTimes?.pmArrival),
+      pmDeparture: pickTime(source?.pmDeparture, biometricTimes?.pmDeparture),
       overrideCode: isManualOverride
-        ? ((usePending ? request.overrideCode : day?.code) as ManualOverrideCode)
-        : "",
-      notes: (usePending ? request.notes : day?.notes) ?? "",
-      pendingStatus: request?.status === "PENDING" ? "PENDING" : request?.status === "REJECTED" ? "REJECTED" : null,
+        ? ((useRequestData ? request.overrideCode : day?.code) as ManualOverrideCode)
+        : defaultOverride,
+      // A day already on file (approved and written into the official
+      // record) doesn't need resubmitting — it's locked here too, same as
+      // PENDING. An admin can revert an accidental approval from DTR
+      // Requests, which reopens it for editing again.
+      pendingStatus:
+        request?.status === "PENDING"
+          ? "PENDING"
+          : request?.status === "REJECTED"
+            ? "REJECTED"
+            : day
+              ? "APPROVED"
+              : null,
     };
   });
 
@@ -97,12 +147,6 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
         </div>
         <div className="flex gap-2">
           <MyScheduleDialog employee={employee} />
-          <Link href={`/dtr/${employee.id}/${year}/${month}/print`}>
-            <Button type="button" variant="outline">
-              <Printer />
-              Print DTR (Form 48)
-            </Button>
-          </Link>
         </div>
       </div>
 
@@ -117,13 +161,13 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
           <Stat label="Days Rendered" value={totals.totalDaysRendered.toFixed(1)} />
-          <Stat label="Gross Amount" value={peso(totals.grossAmount)} />
-          <Stat label="Deduction" value={peso(totals.deduction)} />
-          <Stat label="Net Amount" value={peso(totals.netAmount)} highlight />
+          <Stat label="Gross Amount" value={formatPeso(totals.grossAmount)} />
+          <Stat label="Deduction" value={formatPeso(totals.deduction)} />
+          <Stat label="Net Amount" value={formatPeso(totals.netAmount)} highlight />
         </CardContent>
       </Card>
 
-      <MyDtrForm key={`${year}-${month}-${half}`} initialRows={rows} employeeSchedule={employee} />
+      <MyDtrForm key={`${year}-${month}-${half}`} employeeId={employee.id} initialRows={rows} employeeSchedule={employee} />
     </div>
   );
 }
@@ -137,12 +181,3 @@ function Stat({ label, value, highlight }: { label: string; value: string; highl
   );
 }
 
-function peso(amount: number): string {
-  return `₱${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
-}
-
-function clampMonth(month: number): number {
-  if (Number.isNaN(month) || month < 1) return 1;
-  if (month > 12) return 12;
-  return month;
-}

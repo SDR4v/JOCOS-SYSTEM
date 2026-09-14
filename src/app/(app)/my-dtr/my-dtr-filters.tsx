@@ -26,7 +26,7 @@ export function MyDtrFilters({ year, month, half }: { year: number; month: numbe
     <div className="flex flex-wrap items-center gap-3">
       <Select value={String(month)} onValueChange={(value) => pushParams({ month: Number(value) })}>
         <SelectTrigger className="w-36">
-          <SelectValue />
+          <SelectValue>{MONTH_NAMES[month - 1]}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {MONTH_NAMES.map((name, i) => (
@@ -52,7 +52,7 @@ export function MyDtrFilters({ year, month, half }: { year: number; month: numbe
 
       <Select value={String(half)} onValueChange={(value) => pushParams({ half: Number(value) as Half })}>
         <SelectTrigger className="w-44">
-          <SelectValue />
+          <SelectValue>{halfLabel(half)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="1">{halfLabel(1)}</SelectItem>

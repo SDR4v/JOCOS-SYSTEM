@@ -1,6 +1,6 @@
 "use server";
 
-import { AuthError } from "next-auth";
+import { AuthError, CredentialsSignin } from "next-auth";
 import { signIn } from "@/auth";
 
 export async function loginAction(
@@ -19,6 +19,9 @@ export async function loginAction(
     });
     return { error: null };
   } catch (error) {
+    if (error instanceof CredentialsSignin && error.code === "deactivated") {
+      return { error: "This account has been deactivated." };
+    }
     if (error instanceof AuthError) {
       return { error: "Invalid username or password." };
     }

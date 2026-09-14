@@ -27,12 +27,22 @@ export function DtrFilters({
   const router = useRouter();
 
   function pushParams(next: Partial<{ employeeId: string; year: number; month: number; half: Half }>) {
+    const nextYear = next.year ?? year;
+    const nextMonth = next.month ?? month;
+    const nextHalf = next.half ?? half;
     const params = new URLSearchParams({
       employeeId: next.employeeId ?? employeeId,
-      year: String(next.year ?? year),
-      month: String(next.month ?? month),
-      half: String(next.half ?? half),
+      year: String(nextYear),
+      month: String(nextMonth),
+      half: String(nextHalf),
     });
+    // Remembered so navigating back to DTR from elsewhere (the nav link
+    // carries neither an employeeId nor a period of its own) resumes here
+    // instead of always resetting to the first employee and current month.
+    if (next.employeeId) {
+      document.cookie = `jocos-last-dtr-employee=${next.employeeId}; path=/; max-age=${60 * 60 * 24 * 365}`;
+    }
+    document.cookie = `jocos-last-dtr-period=${nextYear}:${nextMonth}:${nextHalf}; path=/; max-age=${60 * 60 * 24 * 365}`;
     router.push(`/admin/dtr?${params.toString()}`);
   }
 
@@ -48,7 +58,7 @@ export function DtrFilters({
 
       <Select value={String(month)} onValueChange={(value) => pushParams({ month: Number(value) })}>
         <SelectTrigger className="w-36">
-          <SelectValue />
+          <SelectValue>{MONTH_NAMES[month - 1]}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {MONTH_NAMES.map((name, i) => (
@@ -74,7 +84,7 @@ export function DtrFilters({
 
       <Select value={String(half)} onValueChange={(value) => pushParams({ half: Number(value) as Half })}>
         <SelectTrigger className="w-44">
-          <SelectValue />
+          <SelectValue>{halfLabel(half)}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           <SelectItem value="1">{halfLabel(1)}</SelectItem>

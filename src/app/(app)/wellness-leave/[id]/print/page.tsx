@@ -3,9 +3,10 @@ import { requireUser } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { formatISODate } from "@/lib/period";
 import { getSemester, wellnessLeaveDisplayStatus } from "@/lib/wellness-leave";
-import { getDailyRate } from "@/lib/payroll";
+import { getDailyRate, formatPeso as peso } from "@/lib/payroll";
 import { PrintButton } from "../../print-button";
-import { WellnessLeaveApplicationForm, peso } from "../../print-form";
+import { DownloadPdfButton } from "@/components/download-pdf-button";
+import { WellnessLeaveApplicationForm } from "../../print-form";
 
 export default async function WellnessLeavePrintPage({ params }: PageProps<"/wellness-leave/[id]/print">) {
   const user = await requireUser();
@@ -41,7 +42,13 @@ export default async function WellnessLeavePrintPage({ params }: PageProps<"/wel
     <div className="space-y-4">
       <div className="flex items-center justify-between print:hidden">
         <p className="text-sm text-muted-foreground">Printable Application for Wellness Leave</p>
-        <PrintButton />
+        <div className="flex gap-2">
+          <DownloadPdfButton
+            targetId="wellness-leave-print-content"
+            filename={`Wellness-Leave-${request.employee.name}.pdf`}
+          />
+          <PrintButton />
+        </div>
       </div>
 
       <WellnessLeaveApplicationForm

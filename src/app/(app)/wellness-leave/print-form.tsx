@@ -50,7 +50,10 @@ export function WellnessLeaveApplicationForm({
   confirmedTakenAtLabel,
 }: WellnessLeaveApplicationFormProps) {
   return (
-    <div className="mx-auto max-w-3xl bg-white p-8 text-[13px] text-black print:m-0 print:max-w-none print:p-0">
+    <div
+      id="wellness-leave-print-content"
+      className="mx-auto max-w-3xl bg-white p-8 text-[13px] text-black print:m-0 print:max-w-none print:p-0"
+    >
       <p className="text-xs font-medium text-primary italic">
         Adapted from CS Form No. 6
         <br />
@@ -90,7 +93,7 @@ export function WellnessLeaveApplicationForm({
             <p className="mb-2 font-bold">6.A TYPE OF LEAVE TO BE AVAILED OF</p>
             <p>☑ Wellness Leave</p>
             <p className="mt-1 text-xs text-gray-600">
-              COS benefit: 5 days/year (3 for 1st Sem, 2 for 2nd Sem), not a Civil Service leave type.
+              COS benefit: 5 days/year (2 for 1st Sem, 3 for 2nd Sem), not a Civil Service leave type.
             </p>
           </div>
           <div className="w-1/2 p-2">
@@ -207,8 +210,4 @@ function BalanceRow({
       <td className="border border-black p-1 text-center">{value(sem2)}</td>
     </tr>
   );
-}
-
-export function peso(amount: number): string {
-  return `₱${amount.toLocaleString(undefined, { minimumFractionDigits: 2 })}`;
 }

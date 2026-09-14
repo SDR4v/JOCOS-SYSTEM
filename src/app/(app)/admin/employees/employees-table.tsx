@@ -2,14 +2,15 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Search } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { EditEmployeeDialog, CreateLoginDialog } from "./employee-dialogs";
+import { humanizeEnum } from "@/lib/utils";
+import { EditEmployeeDialog, CreateLoginDialog, ResetPasswordDialog } from "./employee-dialogs";
 import { ScheduleDialog } from "./schedule-dialog";
-import { toggleEmployeeStatus } from "./actions";
+import { toggleEmployeeStatus, removeEmployee } from "./actions";
 
 type EmployeeRow = {
   id: string;
@@ -31,7 +32,7 @@ type EmployeeRow = {
     session2Start: number | null;
     session2End: number | null;
   }[];
-  user: { username: string } | null;
+  user: { id: string; username: string } | null;
 };
 
 export function EmployeesTable({ employees }: { employees: EmployeeRow[] }) {
@@ -54,6 +55,14 @@ export function EmployeesTable({ employees }: { employees: EmployeeRow[] }) {
     startTransition(async () => {
       await toggleEmployeeStatus(id);
       toast.success("Employee status updated");
+    });
+  }
+
+  function handleRemove(id: string) {
+    startTransition(async () => {
+      const result = await removeEmployee(id);
+      if (!result.error) toast.success("Employee removed");
+      else toast.error(result.error);
     });
   }
 
@@ -93,19 +102,22 @@ export function EmployeesTable({ employees }: { employees: EmployeeRow[] }) {
             )}
             {filtered.map((employee) => (
               <TableRow key={employee.id}>
-                <TableCell className="text-sm">{employee.officeAssignment}</TableCell>
+                <TableCell className="max-w-[200px] text-sm whitespace-normal">{employee.officeAssignment}</TableCell>
                 <TableCell>{employee.employeeNo}</TableCell>
-                <TableCell className="font-medium">{employee.name}</TableCell>
-                <TableCell className="text-sm">{employee.positionTitle}</TableCell>
+                <TableCell className="font-medium whitespace-normal">{employee.name}</TableCell>
+                <TableCell className="max-w-[200px] text-sm whitespace-normal">{employee.positionTitle}</TableCell>
                 <TableCell>{employee.salaryGrade}</TableCell>
                 <TableCell>
                   <Badge variant={employee.status === "ACTIVE" ? "default" : "secondary"}>
-                    {employee.status}
+                    {humanizeEnum(employee.status)}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   {employee.user ? (
-                    <span className="text-sm text-muted-foreground">{employee.user.username}</span>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm text-muted-foreground">{employee.user.username}</span>
+                      <ResetPasswordDialog userId={employee.user.id} employeeName={employee.name} />
+                    </div>
                   ) : (
                     <CreateLoginDialog employeeId={employee.id} employeeName={employee.name} />
                   )}
@@ -117,10 +129,20 @@ export function EmployeesTable({ employees }: { employees: EmployeeRow[] }) {
                     type="button"
                     variant="outline"
                     size="sm"
-                    disabled={pending}
+                    loading={pending}
                     onClick={() => handleToggle(employee.id)}
                   >
                     {employee.status === "ACTIVE" ? "Deactivate" : "Activate"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    loading={pending}
+                    onClick={() => handleRemove(employee.id)}
+                  >
+                    <Trash2 />
+                    Remove
                   </Button>
                 </TableCell>
               </TableRow>

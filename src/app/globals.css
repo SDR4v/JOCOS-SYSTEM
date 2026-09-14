@@ -135,4 +135,11 @@
   html {
     @apply font-sans;
   }
+
+  /* Drop the native clock-picker icon on time inputs — it's an extra click
+     target that sits inside dense attendance-entry tables and slows down
+     keyboard-only (Tab) entry across many rows. Typing/Tab still works. */
+  input[type="time"]::-webkit-calendar-picker-indicator {
+    display: none;
+  }
 }

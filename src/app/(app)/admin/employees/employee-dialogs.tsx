@@ -13,7 +13,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createEmployee, updateEmployee, createMemberLogin, type FormState } from "./actions";
+import { createEmployee, updateEmployee, createMemberLogin, resetEmployeePassword, type FormState } from "./actions";
 
 const initialState: FormState = { error: null };
 
@@ -94,7 +94,7 @@ export function NewEmployeeDialog() {
         <form action={handleSubmit} className="space-y-4">
           <EmployeeFields />
           <DialogFooter>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" loading={pending}>
               {pending ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
@@ -137,7 +137,7 @@ export function EditEmployeeDialog({ employee }: { employee: EmployeeFormValues 
           <input type="hidden" name="id" value={employee.id} />
           <EmployeeFields defaults={employee} />
           <DialogFooter>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" loading={pending}>
               {pending ? "Saving..." : "Save"}
             </Button>
           </DialogFooter>
@@ -187,8 +187,58 @@ export function CreateLoginDialog({ employeeId, employeeName }: { employeeId: st
             <Input id="password" name="password" type="text" required />
           </div>
           <DialogFooter>
-            <Button type="submit" disabled={pending}>
+            <Button type="submit" loading={pending}>
               {pending ? "Creating..." : "Create"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// There's no "view password" here on purpose — passwords are stored as a
+// one-way hash, so not even an admin can look up what it currently is. This
+// only sets a brand-new one.
+export function ResetPasswordDialog({ userId, employeeName }: { userId: string; employeeName: string }) {
+  const [open, setOpen] = useState(false);
+  const [pending, startTransition] = useTransition();
+
+  function handleSubmit(formData: FormData) {
+    startTransition(async () => {
+      const result = await resetEmployeePassword(initialState, formData);
+      if (!result.error) {
+        toast.success("Password reset");
+        setOpen(false);
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger
+        render={
+          <Button variant="outline" size="sm">
+            Reset Password
+          </Button>
+        }
+      />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Reset password for {employeeName}</DialogTitle>
+        </DialogHeader>
+        <form action={handleSubmit} className="space-y-4">
+          <input type="hidden" name="userId" value={userId} />
+          <div className="space-y-1.5">
+            <Label htmlFor="password">New Password</Label>
+            <Input id="password" name="password" type="text" required />
+            <p className="text-xs text-muted-foreground">Share this new password with the employee directly.</p>
+          </div>
+          <DialogFooter>
+            <Button type="submit" loading={pending}>
+              {pending ? "Resetting..." : "Reset"}
             </Button>
           </DialogFooter>
         </form>

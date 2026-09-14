@@ -12,7 +12,7 @@ export function InitializeYearButton({ year }: { year: number }) {
     <Button
       type="button"
       size="sm"
-      disabled={pending}
+      loading={pending}
       onClick={() => {
         startTransition(async () => {
           const result = await initializeWellnessLeaveBalances(year);

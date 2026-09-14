@@ -7,7 +7,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 // ── Auth / roster ──────────────────────────────────────────────
@@ -30,9 +30,27 @@ model User {
   requestedLeaves      WellnessLeaveRequest[] @relation("LeaveRequester")
   cancelledLeaves      WellnessLeaveRequest[] @relation("LeaveCanceller")
   confirmedTakenLeaves WellnessLeaveRequest[] @relation("LeaveTakenConfirmer")
+  deletedLeaves        WellnessLeaveRequest[] @relation("LeaveDeleter")
+  deletedEmployees     Employee[]             @relation("EmployeeDeleter")
   enteredTripAuths     TripAuthorization[]    @relation("TripAuthEnteredBy")
   biometricUploads     BiometricUpload[]      @relation("BiometricUploader")
+  ignoredBiometricNames IgnoredBiometricName[] @relation("BiometricNameIgnorer")
   reviewedDtrRequests  DtrEntryRequest[]      @relation("DtrRequestReviewer")
+  createdHolidays      Holiday[]              @relation("HolidayCreator")
+  auditLogEntries      AuditLog[]             @relation("AuditActor")
+  notifications        Notification[]         @relation("NotificationRecipient")
+  avatar               UserAvatar?
+}
+
+// Kept in its own table (like BiometricUpload) rather than columns on User —
+// so an ordinary user lookup never drags along an image blob.
+model UserAvatar {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  mimeType  String
+  fileData  Bytes
+  updatedAt DateTime @updatedAt
 }
 
 enum EmployeeStatus {
@@ -70,6 +88,14 @@ model Employee {
   session2End      Int?
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
+
+  // Soft delete — removes the employee from the roster view without
+  // touching their DTR/payroll/leave history (which other records still
+  // reference). Restoring only clears this; it doesn't re-apply ACTIVE
+  // status, matching the same restore convention as WellnessLeaveRequest.
+  deletedById String?
+  deletedBy   User?     @relation("EmployeeDeleter", fields: [deletedById], references: [id])
+  deletedAt   DateTime?
 
   user                  User?
   attendanceDays        AttendanceDay[]
@@ -125,6 +151,7 @@ enum AttendanceCode {
   WORK_SUSPENDED    // "WS" — full credit, no deduction
   WELLNESS_LEAVE    // "WL" — full credit, paid, draws down WL balance
   TRIP_AUTHORIZATION // "TA" — credit computed from HR-entered time
+  HOLIDAY           // "H" — no work, no pay; written by the holidays calendar
   UNSET             // no data yet — needs manual entry or biometrics review
 }
 
@@ -132,6 +159,7 @@ enum AttendanceSource {
   BIOMETRIC
   WELLNESS_LEAVE
   TRIP_AUTHORIZATION
+  HOLIDAY
   MANUAL
   EMPLOYEE_REQUEST // self-submitted by the COS worker, approved by HR
 }
@@ -153,10 +181,16 @@ model AttendanceDay {
   dayCredit   Float            @default(0)
   source      AttendanceSource @default(MANUAL)
   amArrival   DateTime?
+  // Auto-detected, never user-set: this day's AM Arrival is really the tail
+  // of the PREVIOUS day's overnight shift (that day has an arrival but no
+  // departure yet; this day has a departure but no arrival). The two rows'
+  // times are combined into one shift graded on the previous day — see
+  // lib/dtr-time.ts's detectNightShiftContinuation — and this flag just
+  // tells the printed DTR to show "From Duty" here instead of blank.
+  amArrivalFromDuty Boolean @default(false)
   amDeparture DateTime?
   pmArrival   DateTime?
   pmDeparture DateTime?
-  notes       String?
 
   editedById String?
   editedBy   User?    @relation("AttendanceDayEditor", fields: [editedById], references: [id])
@@ -185,7 +219,6 @@ model DtrEntryRequest {
   pmArrival   DateTime?
   pmDeparture DateTime?
   overrideCode AttendanceCode?      // set only for REST_DAY / WORK_SUSPENDED / UNSET proposals
-  notes       String?
   status      DtrEntryRequestStatus @default(PENDING)
   submittedAt DateTime              @default(now())
 
@@ -244,6 +277,15 @@ model WellnessLeaveRequest {
   confirmedTakenBy   User?     @relation("LeaveTakenConfirmer", fields: [confirmedTakenById], references: [id])
   confirmedTakenAt   DateTime?
 
+  // Soft delete — an admin-only cleanup action (e.g. a duplicate/erroneous
+  // filing). Deleting a still-ACTIVE request also reverts its balance and
+  // attendance-day effects (same as a pull-out) before hiding it; deleting
+  // an already-CANCELLED one just hides it. Restoring only clears this —
+  // it does NOT re-apply balance/attendance effects, to avoid double-booking.
+  deletedById String?
+  deletedBy   User?     @relation("LeaveDeleter", fields: [deletedById], references: [id])
+  deletedAt   DateTime?
+
   createdAt DateTime @default(now())
 }
 
@@ -266,7 +308,34 @@ model TripAuthorization {
   @@index([employeeId, date])
 }
 
-// ── Biometrics import ───────────────────────────────────────────
+// ── Holidays / calendar ──────────────────────────────────────────
+// Adding one here writes AttendanceCode.HOLIDAY into every active employee's
+// AttendanceDay for that date via syncHolidayAttendance (0 credit — no work,
+// no pay), so DTR and the JOCOS report both reflect it immediately.
+
+enum HolidayType {
+  REGULAR
+  SPECIAL_NON_WORKING
+}
+
+model Holiday {
+  id     String      @id @default(cuid())
+  date   DateTime    @unique
+  name   String
+  type   HolidayType @default(REGULAR)
+
+  createdById String
+  createdBy   User   @relation("HolidayCreator", fields: [createdById], references: [id])
+  createdAt   DateTime @default(now())
+}
+
+// ── Biometrics upload bin ───────────────────────────────────────
+// No RFID feed yet, and the biometrics machine (a separate system) isn't
+// consistently exporting complete time-in/time-out data — so instead of
+// auto-parsing punches, this is just a shared PDF library: HR uploads the
+// biometrics export, employees open/download it to copy their own times
+// into My DTR by hand. PunchRecord (below) stays ready for when automatic
+// parsing is worth building.
 
 enum BiometricUploadStatus {
   UPLOADED
@@ -275,11 +344,15 @@ enum BiometricUploadStatus {
 }
 
 model BiometricUpload {
-  id           String                 @id @default(cuid())
-  filename     String
-  periodStart  DateTime
-  periodEnd    DateTime
-  status       BiometricUploadStatus  @default(UPLOADED)
+  id          String   @id @default(cuid())
+  title       String
+  filename    String
+  mimeType    String
+  fileSize    Int
+  fileData    Bytes
+  periodStart DateTime?
+  periodEnd   DateTime?
+  status      BiometricUploadStatus @default(UPLOADED)
 
   uploadedById String
   uploadedBy   User   @relation("BiometricUploader", fields: [uploadedById], references: [id])
@@ -303,5 +376,71 @@ model PunchRecord {
   isDuplicate  Boolean @default(false)
   createdAt    DateTime @default(now())
 
+  // True only when an admin hand-linked this punch via linkPunchesToEmployee
+  // (never set by processBiometricUpload's own name matching) — lets the
+  // review screen show a "Linked" history distinct from the automatic
+  // matches, and lets a mistaken manual link be undone without touching
+  // anything the matcher resolved on its own.
+  linkedManually Boolean @default(false)
+
   @@index([employeeId, timestamp])
+}
+
+// A scanned name an admin has confirmed is NOT one of this office's tracked
+// employees (the shared biometric machine also logs regular/permanent staff
+// and other offices' COS workers — the export's own title, "Casual, COS and
+// Others", says as much). Global by rawName rather than per-upload, since
+// the same outside person keeps showing up under the same name in every
+// future export — this is what lets the "Unmatched names" review list stop
+// re-surfacing them every time.
+model IgnoredBiometricName {
+  id          String   @id @default(cuid())
+  rawName     String   @unique
+  ignoredById String
+  ignoredBy   User     @relation("BiometricNameIgnorer", fields: [ignoredById], references: [id])
+  ignoredAt   DateTime @default(now())
+}
+
+// ── Audit log ──────────────────────────────────────────────────
+// One row per create/update/delete made through an admin (or self-service)
+// action. `summary` is a human-readable line built by the action itself
+// (e.g. "Marked Aug 5, 2026 as Rest Day for Juan Dela Cruz") rather than a
+// generic field-level diff — cheap to write, and the only thing the
+// Activity page needs to render.
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+}
+
+model AuditLog {
+  id         String      @id @default(cuid())
+  entityType String
+  entityId   String
+  action     AuditAction
+  summary    String
+
+  actorId   String
+  actor     User     @relation("AuditActor", fields: [actorId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+}
+
+// ── Notifications ─────────────────────────────────────────────
+// In-app only — no email/push. Read fresh on each page load/navigation,
+// same as the existing pending-DTR-requests nav badge.
+
+model Notification {
+  id          String   @id @default(cuid())
+  recipientId String
+  recipient   User     @relation("NotificationRecipient", fields: [recipientId], references: [id])
+  message     String
+  link        String?
+  read        Boolean  @default(false)
+  createdAt   DateTime @default(now())
+
+  @@index([recipientId, read])
 }

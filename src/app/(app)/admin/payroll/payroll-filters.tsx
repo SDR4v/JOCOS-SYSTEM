@@ -25,10 +25,19 @@ export function PayrollFilters({
 }) {
   const router = useRouter();
 
+  // Remembered so navigating back to Daily Rate Computation from elsewhere
+  // resumes on the same period instead of always resetting to the current month.
+  function persistPeriod(y: number, m: number, h: PayrollHalf) {
+    document.cookie = `jocos-last-payroll-period=${y}:${m}:${h}; path=/; max-age=${60 * 60 * 24 * 365}`;
+  }
+
   function pushParams(next: Partial<{ year: number; month: number }>) {
+    const nextYear = next.year ?? year;
+    const nextMonth = next.month ?? month;
+    persistPeriod(nextYear, nextMonth, half);
     const params = new URLSearchParams({
-      year: String(next.year ?? year),
-      month: String(next.month ?? month),
+      year: String(nextYear),
+      month: String(nextMonth),
       half,
     });
     router.push(`/admin/payroll?${params.toString()}`);
@@ -38,7 +47,7 @@ export function PayrollFilters({
     <div className="flex flex-wrap items-center gap-3">
       <Select value={String(month)} onValueChange={(value) => pushParams({ month: Number(value) })}>
         <SelectTrigger className="w-36">
-          <SelectValue />
+          <SelectValue>{MONTH_NAMES[month - 1]}</SelectValue>
         </SelectTrigger>
         <SelectContent>
           {MONTH_NAMES.map((name, i) => (
@@ -64,7 +73,11 @@ export function PayrollFilters({
 
       <div className="flex gap-2">
         {(["1", "2", "combined"] as const).map((h) => (
-          <Link key={h} href={`/admin/payroll?year=${year}&month=${month}&half=${h}`}>
+          <Link
+            key={h}
+            href={`/admin/payroll?year=${year}&month=${month}&half=${h}`}
+            onClick={() => persistPeriod(year, month, h)}
+          >
             <Button variant={h === half ? "default" : "outline"} size="sm">
               {h === "1" ? "1st half" : h === "2" ? "2nd half" : "Combined"}
             </Button>

@@ -47,3 +47,21 @@ next-env.d.ts
 /prisma/*.db-journal
 /dev.db
 /dev.db-journal
+.prisma/
+
+.vercel
+.env*
+
+# local scratch / agent tooling (not part of the app)
+/.scratch/
+/.agents/
+
+# personnel/payroll source documents (contain real employee data)
+/2026 Inventory of Manpower.pdf
+/2026 Inventory of Manpower.xlsx
+/BATAC LOGO.jpg
+/BATAC.png
+/CS Form No. 6, Revised 2020 (Application for Leave).pdf
+/DTR.pdf
+/JOCOS - DAILY RATE COMPUTATION 2026 2ND.pdf
+/Sample Biometrics.pdf

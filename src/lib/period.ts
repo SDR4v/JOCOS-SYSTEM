@@ -62,6 +62,12 @@ export function formatDisplayDate(iso: string): string {
   return date.toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "short", timeZone: "UTC" });
 }
 
+// "Aug 25, 2026" — for audit log summaries and other spots that need an
+// unambiguous, year-inclusive date (formatDisplayDate omits the year).
+export function formatFullDate(date: Date): string {
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" });
+}
+
 export function halfLabel(half: Half): string {
   return half === 1 ? "1st half (1–15)" : "2nd half (16–end)";
 }
@@ -70,3 +76,11 @@ export const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December",
 ];
+
+// Keeps a `month` searchParam within 1-12 (e.g. a stale bookmarked URL, or a
+// typed-in value) rather than passing a garbage value through to date math.
+export function clampMonth(month: number): number {
+  if (Number.isNaN(month) || month < 1) return 1;
+  if (month > 12) return 12;
+  return month;
+}
