@@ -17,11 +17,12 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { createHoliday, deleteHoliday } from "./actions";
 
-type HolidayType = "REGULAR" | "SPECIAL_NON_WORKING";
+type HolidayType = "REGULAR" | "SPECIAL_NON_WORKING" | "SUSPENDED";
 
 const TYPE_LABELS: Record<HolidayType, string> = {
   REGULAR: "Regular Holiday",
   SPECIAL_NON_WORKING: "Special (Non-working) Day",
+  SUSPENDED: "Suspended Work (paid)",
 };
 
 export type DayHoliday = { id: string; name: string; type: HolidayType };
@@ -85,8 +86,9 @@ function ExistingHoliday({
         <p className="text-lg font-medium">{holiday.name}</p>
         <Badge variant={holiday.type === "REGULAR" ? "default" : "secondary"}>{TYPE_LABELS[holiday.type]}</Badge>
         <p className="text-xs text-muted-foreground">
-          Every active employee&apos;s DTR for this day is marked Holiday (no work, no pay). Removing it reverts
-          those days back to unset.
+          {holiday.type === "SUSPENDED"
+            ? "Every active employee's DTR for this day is marked Work Suspended (full pay, no work expected). Removing it reverts those days back to unset."
+            : "Every active employee's DTR for this day is marked Holiday (no work, no pay). Removing it reverts those days back to unset."}
         </p>
       </div>
       <DialogFooter>
@@ -141,6 +143,7 @@ function NewHoliday({ date, displayLabel, onClose }: { date: string; displayLabe
             <SelectContent>
               <SelectItem value="REGULAR">{TYPE_LABELS.REGULAR}</SelectItem>
               <SelectItem value="SPECIAL_NON_WORKING">{TYPE_LABELS.SPECIAL_NON_WORKING}</SelectItem>
+              <SelectItem value="SUSPENDED">{TYPE_LABELS.SUSPENDED}</SelectItem>
             </SelectContent>
           </Select>
         </div>

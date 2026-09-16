@@ -14,15 +14,21 @@ function revalidateHolidayPaths() {
   revalidatePath("/admin/holidays");
   revalidatePath("/admin/dtr");
   revalidatePath("/admin/payroll");
+  revalidatePath("/admin/monitoring");
   revalidatePath("/my-dtr");
+  // The Monitoring nav badge (incomplete-DTR count) lives in the shared
+  // (app) layout — see the same fix in admin/dtr-requests/actions.ts —
+  // so a page-level revalidatePath above doesn't reach it on its own.
+  revalidatePath("/", "layout");
 }
 
-// Writes AttendanceCode.HOLIDAY (0 credit — no work, no pay) into every
-// active employee's AttendanceDay for the given date, so DTR and the JOCOS
-// report both reflect it immediately. Leaves WELLNESS_LEAVE and
-// TRIP_AUTHORIZATION records alone — those are governed by their own
-// approval flows and shouldn't be silently overwritten by a holiday.
-async function syncHolidayAttendance(date: Date, adminId: string) {
+// Writes AttendanceCode.HOLIDAY (0 credit — no work, no pay) or, for a
+// SUSPENDED calendar entry, AttendanceCode.WORK_SUSPENDED (full credit, no
+// deduction) into every active employee's AttendanceDay for the given date,
+// so DTR and the JOCOS report both reflect it immediately. Leaves
+// WELLNESS_LEAVE and TRIP_AUTHORIZATION records alone — those are governed
+// by their own approval flows and shouldn't be silently overwritten.
+async function syncHolidayAttendance(date: Date, adminId: string, type: "REGULAR" | "SPECIAL_NON_WORKING" | "SUSPENDED") {
   const employees = await prisma.employee.findMany({ where: { status: "ACTIVE" }, select: { id: true } });
   if (employees.length === 0) return;
 
@@ -34,10 +40,11 @@ async function syncHolidayAttendance(date: Date, adminId: string) {
     existing.filter((d) => d.source === "WELLNESS_LEAVE" || d.source === "TRIP_AUTHORIZATION").map((d) => d.employeeId),
   );
 
+  const isSuspended = type === "SUSPENDED";
   const data = {
-    code: "HOLIDAY" as const,
+    code: isSuspended ? ("WORK_SUSPENDED" as const) : ("HOLIDAY" as const),
     lateMinutes: 0,
-    dayCredit: 0,
+    dayCredit: isSuspended ? 1 : 0,
     source: "HOLIDAY" as const,
     amArrival: null,
     amDeparture: null,
@@ -57,13 +64,18 @@ async function syncHolidayAttendance(date: Date, adminId: string) {
           create: { employeeId: e.id, date, ...data },
         }),
       ),
+    // Prisma's default interactive-transaction timeout (5s) isn't enough to
+    // upsert one row per active employee over the pooled remote connection
+    // once the roster is a couple hundred people — it was rolling back
+    // silently (Holiday row created, but no AttendanceDay actually written).
+    { timeout: 30_000 },
   );
 }
 
 const createSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   name: z.string().trim().min(1, "Name is required").max(120),
-  type: z.enum(["REGULAR", "SPECIAL_NON_WORKING"]),
+  type: z.enum(["REGULAR", "SPECIAL_NON_WORKING", "SUSPENDED"]),
 });
 
 export async function createHoliday(input: unknown): Promise<FormState> {
@@ -83,7 +95,7 @@ export async function createHoliday(input: unknown): Promise<FormState> {
   const holiday = await prisma.holiday.create({
     data: { date, name: parsed.data.name, type: parsed.data.type, createdById: admin.id },
   });
-  await syncHolidayAttendance(date, admin.id);
+  await syncHolidayAttendance(date, admin.id, parsed.data.type);
   await logAudit({
     actorId: admin.id,
     entityType: "Holiday",
@@ -142,7 +154,7 @@ export async function addStandardHolidays(year: number): Promise<FormState & { a
     await prisma.holiday.create({
       data: { date, name: h.name, type: h.type, createdById: admin.id },
     });
-    await syncHolidayAttendance(date, admin.id);
+    await syncHolidayAttendance(date, admin.id, h.type);
     added += 1;
   }
 

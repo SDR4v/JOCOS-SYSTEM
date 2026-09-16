@@ -13,11 +13,14 @@ import {
   BiometricsIcon,
   HistoryIcon,
   ActivityIcon,
+  MonitoringIcon,
 } from "@/components/nav-icons";
 import { requireUser } from "@/lib/session";
 import { signOut } from "@/auth";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
+import { getHalfMonthRange, type Half } from "@/lib/period";
+import { countEmployeesWithIncompleteDtr } from "@/lib/dtr-monitoring";
 import { NavLink } from "@/components/nav-link";
 import { LiquidNav } from "@/components/liquid-nav";
 import { MobileNav } from "@/components/mobile-nav";
@@ -26,8 +29,17 @@ import { NotificationBell } from "@/components/notification-bell";
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
   const isAdmin = user.role === "ADMIN";
-  const [pendingDtrRequests, employee] = await Promise.all([
+  const now0 = new Date();
+  const currentHalf: Half = now0.getDate() <= 15 ? 1 : 2;
+  const { start: currentPeriodStart, end: currentPeriodEnd } = getHalfMonthRange(
+    now0.getFullYear(),
+    now0.getMonth() + 1,
+    currentHalf,
+  );
+
+  const [pendingDtrRequests, incompleteDtrCount, employee] = await Promise.all([
     isAdmin ? prisma.dtrEntryRequest.count({ where: { status: "PENDING" } }) : Promise.resolve(0),
+    isAdmin ? countEmployeesWithIncompleteDtr(currentPeriodStart, currentPeriodEnd) : Promise.resolve(0),
     !isAdmin && user.employeeId
       ? prisma.employee.findUnique({ where: { id: user.employeeId }, select: { salaryGrade: true } })
       : Promise.resolve(null),
@@ -45,6 +57,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         { href: "/admin/biometrics", icon: <BiometricsIcon className="size-4" />, label: "Biometrics" },
         { href: "/admin/dtr", icon: <DtrIcon className="size-4" />, label: "DTR" },
         { href: "/admin/dtr-requests", icon: <DtrRequestsIcon className="size-4" />, label: "DTR Requests", badge: pendingDtrRequests },
+        { href: "/admin/monitoring", icon: <MonitoringIcon className="size-4" />, label: "Monitoring", badge: incompleteDtrCount },
         { href: "/admin/wellness-leave", icon: <WellnessLeaveIcon className="size-4" />, label: "Wellness Leave" },
         { href: "/admin/payroll", icon: <PayrollIcon className="size-4" />, label: "Daily Rate Computation" },
         { href: "/admin/history", icon: <HistoryIcon className="size-4" />, label: "History" },

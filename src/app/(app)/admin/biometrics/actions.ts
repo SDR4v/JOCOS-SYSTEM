@@ -137,6 +137,7 @@ export async function processBiometricUpload(id: string): Promise<ProcessResult>
 
   revalidatePath("/admin/biometrics");
   revalidatePath(`/admin/biometrics/${id}`);
+  revalidatePath("/admin/monitoring");
   return { error: null, droppedRows };
 }
 
@@ -166,6 +167,7 @@ export async function linkPunchesToEmployee(uploadId: string, rawName: string, e
   });
 
   revalidatePath(`/admin/biometrics/${uploadId}`);
+  revalidatePath("/admin/monitoring");
   return { error: null };
 }
 
@@ -198,6 +200,7 @@ export async function unlinkPunches(uploadId: string, rawName: string): Promise<
   });
 
   revalidatePath(`/admin/biometrics/${uploadId}`);
+  revalidatePath("/admin/monitoring");
   return { error: null };
 }
 
@@ -224,6 +227,7 @@ export async function ignoreBiometricName(rawName: string): Promise<FormState> {
   });
 
   revalidatePath("/admin/biometrics");
+  revalidatePath("/admin/monitoring");
   return { error: null };
 }
 
@@ -241,6 +245,7 @@ export async function unignoreBiometricName(rawName: string): Promise<FormState>
   });
 
   revalidatePath("/admin/biometrics");
+  revalidatePath("/admin/monitoring");
   return { error: null };
 }
 
@@ -333,6 +338,7 @@ export async function submitConfidentDaysForReview(uploadId: string): Promise<Ap
 
   revalidatePath("/admin/biometrics");
   revalidatePath(`/admin/biometrics/${uploadId}`);
+  revalidatePath("/admin/monitoring");
   revalidatePath("/my-dtr");
   return { error: null, summary: { submitted, skippedExisting, flaggedDays, unmatchedPunches } };
 }
@@ -355,5 +361,6 @@ export async function deleteBiometricUpload(id: string): Promise<FormState> {
 
   revalidatePath("/admin/biometrics");
   revalidatePath("/biometrics");
+  revalidatePath("/admin/monitoring");
   return { error: null };
 }

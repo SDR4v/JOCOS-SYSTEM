@@ -54,6 +54,7 @@ export function CalendarGrid({
                     cell.inMonth && !cell.holiday && "hover:bg-accent",
                     cell.holiday?.type === "REGULAR" && "bg-primary/10 hover:bg-primary/15",
                     cell.holiday?.type === "SPECIAL_NON_WORKING" && "bg-brand-gold/10 hover:bg-brand-gold/15",
+                    cell.holiday?.type === "SUSPENDED" && "bg-brand-green/10 hover:bg-brand-green/15",
                   )}
                 >
                   <span

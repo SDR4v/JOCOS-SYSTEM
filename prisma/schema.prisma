@@ -316,6 +316,7 @@ model TripAuthorization {
 enum HolidayType {
   REGULAR
   SPECIAL_NON_WORKING
+  SUSPENDED
 }
 
 model Holiday {

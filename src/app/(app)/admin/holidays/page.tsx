@@ -27,8 +27,9 @@ export default async function HolidaysPage({ searchParams }: PageProps<"/admin/h
       <div>
         <h1 className="text-2xl font-semibold">Calendar</h1>
         <p className="text-sm text-muted-foreground">
-          Click a day to add or remove a holiday. Adding one marks it as a no-work, no-pay day for every active
-          employee — DTR and the JOCOS Daily Rate Computation update automatically, the same way a rest day does.
+          Click a day to add or remove a holiday or a suspended-work day. A holiday marks it no-work/no-pay; a
+          suspended-work day marks it full pay with no work expected — either way, DTR and the JOCOS Daily Rate
+          Computation update automatically for every active employee.
         </p>
       </div>
 
@@ -45,6 +46,9 @@ export default async function HolidaysPage({ searchParams }: PageProps<"/admin/h
         </span>
         <span className="flex items-center gap-1.5">
           <span className="size-3 rounded-sm bg-brand-gold/10" /> Special (Non-working) Day
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-3 rounded-sm bg-brand-green/10" /> Suspended Work (paid)
         </span>
       </div>
     </div>

@@ -22,7 +22,11 @@ function revalidateWellnessLeavePaths() {
   revalidatePath("/admin/wellness-leave");
   revalidatePath("/admin/dtr");
   revalidatePath("/admin/payroll");
+  revalidatePath("/admin/monitoring");
   revalidatePath("/my-dtr");
+  // The Monitoring nav badge (incomplete-DTR count) lives in the shared
+  // (app) layout — a page-level revalidatePath doesn't reach it on its own.
+  revalidatePath("/", "layout");
 }
 
 export async function createMyWellnessLeaveRequest(_prev: FormState, formData: FormData): Promise<FormState> {

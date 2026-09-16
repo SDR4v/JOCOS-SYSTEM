@@ -118,6 +118,19 @@ export function HistoryIcon(props: SVGProps<SVGSVGElement>) {
   );
 }
 
+export function MonitoringIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="3.5" width="13.5" height="15" rx="2" />
+      <path d="M6.5 8h6.5" />
+      <path d="M6.5 11.2h6.5" />
+      <path d="M6.5 14.4h3.5" />
+      <circle cx="17" cy="16.2" r="3.3" />
+      <path d="M19.4 18.6 21.5 20.7" />
+    </Icon>
+  );
+}
+
 export function ActivityIcon(props: SVGProps<SVGSVGElement>) {
   return (
     <Icon {...props}>
