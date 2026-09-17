@@ -27,7 +27,7 @@ type HolidayType = "REGULAR" | "SPECIAL_NON_WORKING" | "SUSPENDED";
 const TYPE_LABELS: Record<HolidayType, string> = {
   REGULAR: "Holiday",
   SPECIAL_NON_WORKING: "Holiday",
-  SUSPENDED: "Suspended Work (paid)",
+  SUSPENDED: "Suspended Work",
 };
 
 export type DayHoliday = { id: string; name: string; type: HolidayType };
@@ -92,7 +92,7 @@ function ExistingHoliday({
         <Badge variant={holiday.type === "SUSPENDED" ? "secondary" : "default"}>{TYPE_LABELS[holiday.type]}</Badge>
         <p className="text-xs text-muted-foreground">
           {holiday.type === "SUSPENDED"
-            ? "Every active employee's DTR for this day is marked Work Suspended (full pay, no work expected). Removing it reverts those days back to unset."
+            ? "Every active employee's DTR for this day is marked Work Suspended (no work, no pay). Removing it reverts those days back to unset."
             : "Every active employee's DTR for this day is marked Holiday (no work, no pay). Removing it reverts those days back to unset."}
         </p>
       </div>

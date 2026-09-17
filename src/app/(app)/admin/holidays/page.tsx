@@ -27,9 +27,8 @@ export default async function HolidaysPage({ searchParams }: PageProps<"/admin/h
       <div>
         <h1 className="text-2xl font-semibold">Calendar</h1>
         <p className="text-sm text-muted-foreground">
-          Click a day to add or remove a holiday or a suspended-work day. A holiday marks it no-work/no-pay; a
-          suspended-work day marks it full pay with no work expected — either way, DTR and the JOCOS Daily Rate
-          Computation update automatically for every active employee.
+          Click a day to add or remove a holiday or a suspended-work day. Both mark the day no-work/no-pay — DTR and
+          the JOCOS Daily Rate Computation update automatically for every active employee.
         </p>
       </div>
 

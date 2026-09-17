@@ -16,7 +16,7 @@ export const ATTENDANCE_CODES: AttendanceCodeMeta[] = [
   { code: "UNDERTIME_HALF", label: "Undertime — present AM only", shortLabel: "U", defaultDayCredit: 0.5, takesLateMinutes: false },
   { code: "TARDY_HALF", label: "Tardiness — present PM only", shortLabel: "T", defaultDayCredit: 0.5, takesLateMinutes: false },
   { code: "REST_DAY", label: "Rest day / off (excluded)", shortLabel: "X", defaultDayCredit: 0, takesLateMinutes: false },
-  { code: "WORK_SUSPENDED", label: "Work suspended", shortLabel: "WS", defaultDayCredit: 1, takesLateMinutes: false },
+  { code: "WORK_SUSPENDED", label: "Work suspended (no pay)", shortLabel: "WS", defaultDayCredit: 0, takesLateMinutes: false },
   { code: "WELLNESS_LEAVE", label: "Wellness Leave", shortLabel: "WL", defaultDayCredit: 1, takesLateMinutes: false },
   { code: "TRIP_AUTHORIZATION", label: "Trip Authorization", shortLabel: "TA", defaultDayCredit: 1, takesLateMinutes: false },
   { code: "HOLIDAY", label: "Holiday (no work, no pay)", shortLabel: "H", defaultDayCredit: 0, takesLateMinutes: false },

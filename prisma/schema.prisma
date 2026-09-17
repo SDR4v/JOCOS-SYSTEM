@@ -148,7 +148,7 @@ enum AttendanceCode {
   UNDERTIME_HALF    // "U" — present AM only, 0.5 credit
   TARDY_HALF        // "T" — present PM only, 0.5 credit
   REST_DAY          // "X" — excluded, not counted, unpaid
-  WORK_SUSPENDED    // "WS" — full credit, no deduction
+  WORK_SUSPENDED    // "WS" — 0 credit; no work, no pay (like HOLIDAY, just a different reason)
   WELLNESS_LEAVE    // "WL" — full credit, paid, draws down WL balance
   TRIP_AUTHORIZATION // "TA" — credit computed from HR-entered time
   HOLIDAY           // "H" — no work, no pay; written by the holidays calendar

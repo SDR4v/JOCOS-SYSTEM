@@ -22,12 +22,14 @@ function revalidateHolidayPaths() {
   revalidatePath("/", "layout");
 }
 
-// Writes AttendanceCode.HOLIDAY (0 credit — no work, no pay) or, for a
-// SUSPENDED calendar entry, AttendanceCode.WORK_SUSPENDED (full credit, no
-// deduction) into every active employee's AttendanceDay for the given date,
-// so DTR and the JOCOS report both reflect it immediately. Leaves
-// WELLNESS_LEAVE and TRIP_AUTHORIZATION records alone — those are governed
-// by their own approval flows and shouldn't be silently overwritten.
+// Writes AttendanceCode.HOLIDAY or, for a SUSPENDED calendar entry,
+// AttendanceCode.WORK_SUSPENDED into every active employee's AttendanceDay
+// for the given date — both 0 credit (no work, no pay; COS/Casual staff
+// aren't entitled to paid suspensions), kept as separate codes only so the
+// DTR still shows WHY the day was unworked ("H" vs "WS") — so DTR and the
+// JOCOS report both reflect it immediately. Leaves WELLNESS_LEAVE and
+// TRIP_AUTHORIZATION records alone — those are governed by their own
+// approval flows and shouldn't be silently overwritten.
 async function syncHolidayAttendance(date: Date, adminId: string, type: "REGULAR" | "SPECIAL_NON_WORKING" | "SUSPENDED") {
   const employees = await prisma.employee.findMany({ where: { status: "ACTIVE" }, select: { id: true } });
   if (employees.length === 0) return;
@@ -40,11 +42,10 @@ async function syncHolidayAttendance(date: Date, adminId: string, type: "REGULAR
     existing.filter((d) => d.source === "WELLNESS_LEAVE" || d.source === "TRIP_AUTHORIZATION").map((d) => d.employeeId),
   );
 
-  const isSuspended = type === "SUSPENDED";
   const data = {
-    code: isSuspended ? ("WORK_SUSPENDED" as const) : ("HOLIDAY" as const),
+    code: type === "SUSPENDED" ? ("WORK_SUSPENDED" as const) : ("HOLIDAY" as const),
     lateMinutes: 0,
-    dayCredit: isSuspended ? 1 : 0,
+    dayCredit: 0,
     source: "HOLIDAY" as const,
     amArrival: null,
     amDeparture: null,
