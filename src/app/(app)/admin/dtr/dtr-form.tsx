@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { CopyPlus, Sparkles } from "lucide-react";
+import { Link2, Sparkles } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Select,
@@ -52,6 +52,11 @@ export type DtrRowValue = {
   // A one-off schedule for just this date — see EmployeeDateSchedule. Null
   // means "use the employee's usual schedule."
   dateOverride: DateScheduleOverrideFields | null;
+  // Explicitly links this day's shift to the NEXT calendar day as one
+  // continuing overnight shift — see detectNightShiftContinuation. An
+  // overnight-shaped schedule alone is never enough on its own to combine
+  // two days; an admin has to deliberately say so here.
+  joinedWithNextDay: boolean;
 };
 
 // A punch marked TA isn't a real time — resolve it to its own scheduled
@@ -126,6 +131,7 @@ type DraftFields = Pick<
   | "pmArrivalIsTA"
   | "pmDepartureIsTA"
   | "remarks"
+  | "joinedWithNextDay"
 >;
 
 function draftStorageKey(employeeId: string, rows: DtrRowValue[]): string | null {
@@ -163,6 +169,7 @@ export function DtrForm({
         pmArrivalIsTA: row.pmArrivalIsTA,
         pmDepartureIsTA: row.pmDepartureIsTA,
         remarks: row.remarks,
+        joinedWithNextDay: row.joinedWithNextDay,
       };
     }
     try {
@@ -244,15 +251,14 @@ export function DtrForm({
     toast.success("Filled standard hours for every non-override day");
   }
 
-  function copyPreviousRow(index: number) {
-    if (index === 0) return;
-    const prevRow = rows[index - 1];
-    updateRow(index, {
-      amArrival: prevRow.amArrival,
-      amDeparture: prevRow.amDeparture,
-      pmArrival: prevRow.pmArrival,
-      pmDeparture: prevRow.pmDeparture,
-    });
+  // Explicitly links this row to the very next one as a single overnight
+  // shift crossing midnight — see detectNightShiftContinuation. Deliberately
+  // requires this click: an overnight-shaped schedule plus a blank field
+  // used to be enough on its own to trigger the combined grading, which
+  // meant just configuring a wraparound schedule could dodge undertime/
+  // tardiness detection with no one actually deciding that was legitimate.
+  function toggleJoinedWithNextDay(index: number) {
+    updateRow(index, { joinedWithNextDay: !rows[index].joinedWithNextDay });
   }
 
   function handleSave() {
@@ -309,6 +315,8 @@ export function DtrForm({
               const hasSecondSession = !!schedule.session2;
               const timesDisabled = !!row.overrideCode;
               const scheduleTitle = formatScheduleSummary(schedule);
+              const continuedFromAbove = i > 0 && rows[i - 1].joinedWithNextDay;
+              const nextRow = rows[i + 1];
               return (
                 <TableRow key={row.date}>
                   <TableCell className="whitespace-nowrap text-sm" title={scheduleTitle}>
@@ -320,17 +328,29 @@ export function DtrForm({
                         onSaved={(value) => updateRow(i, { dateOverride: value })}
                       />
                       {formatDisplayDate(row.date)}
-                      {i > 0 && !timesDisabled && (
+                      {!timesDisabled && (
                         <button
                           type="button"
-                          title="Copy times from the row above"
-                          onClick={() => copyPreviousRow(i)}
-                          className="text-muted-foreground hover:text-foreground"
+                          title={
+                            row.joinedWithNextDay
+                              ? `Joined with ${nextRow ? formatDisplayDate(nextRow.date) : "the next day"} as one overnight shift — click to unjoin`
+                              : "Join with the next day — for a shift that crosses midnight into it"
+                          }
+                          onClick={() => toggleJoinedWithNextDay(i)}
+                          className={cn(
+                            "flex size-4 items-center justify-center rounded-sm",
+                            row.joinedWithNextDay
+                              ? "text-primary"
+                              : "text-muted-foreground/50 hover:bg-accent hover:text-muted-foreground",
+                          )}
                         >
-                          <CopyPlus className="size-3.5" />
+                          <Link2 className="size-3.5" />
                         </button>
                       )}
                     </div>
+                    {continuedFromAbove && (
+                      <div className="text-[0.7rem] text-muted-foreground">↳ continued from above</div>
+                    )}
                   </TableCell>
                   <TableCell title={hasFirstSession ? undefined : "No AM session in this day's schedule"}>
                     <div className="flex items-center gap-1">

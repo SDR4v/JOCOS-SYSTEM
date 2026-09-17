@@ -45,6 +45,7 @@ const dtrRowSchema = z.object({
   pmArrivalIsTA: z.boolean().optional(),
   pmDepartureIsTA: z.boolean().optional(),
   remarks: z.string().max(1000).optional(),
+  joinedWithNextDay: z.boolean().optional(),
 });
 
 const saveDtrSchema = z.object({
@@ -74,9 +75,22 @@ type DayFact = {
   // Only ever set from the actual save batch below — a boundary day fetched
   // just for night-shift pairing never needs or touches its own remarks.
   remarks: string | null;
+  // Explicitly links this day to the next one as a continuing overnight
+  // shift — see detectNightShiftContinuation and AttendanceDay.joinedWithNextDay.
+  joinedWithNextDay: boolean;
 };
 
-function factFromExisting(date: Date, existing: { amArrival: Date | null; amDeparture: Date | null; pmArrival: Date | null; pmDeparture: Date | null; code: AttendanceCode } | null): DayFact {
+function factFromExisting(
+  date: Date,
+  existing: {
+    amArrival: Date | null;
+    amDeparture: Date | null;
+    pmArrival: Date | null;
+    pmDeparture: Date | null;
+    code: AttendanceCode;
+    joinedWithNextDay: boolean;
+  } | null,
+): DayFact {
   const overrideCode = existing && MANUAL_OVERRIDE_SET.has(existing.code) ? (existing.code as ManualOverrideCode) : null;
   return {
     iso: formatISODate(date),
@@ -91,6 +105,7 @@ function factFromExisting(date: Date, existing: { amArrival: Date | null; amDepa
     pmArrivalIsTA: false,
     pmDepartureIsTA: false,
     remarks: null,
+    joinedWithNextDay: existing?.joinedWithNextDay ?? false,
   };
 }
 
@@ -213,6 +228,7 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
       pmArrivalIsTA,
       pmDepartureIsTA,
       remarks: row.remarks?.trim() || null,
+      joinedWithNextDay: !!row.joinedWithNextDay,
     };
   });
 
@@ -251,6 +267,7 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
       pmArrival: row.pmArrivalIsTA ? null : row.pmArrival,
       pmDeparture: row.pmDepartureIsTA ? null : row.pmDeparture,
       remarks: row.remarks,
+      joinedWithNextDay: row.joinedWithNextDay,
       // Preserve provenance — deleteHoliday() matches on source: "HOLIDAY"
       // to know which rows to clean up when a holiday is removed, and
       // re-saving the period shouldn't erase that; TRIP_AUTHORIZATION is

@@ -215,6 +215,14 @@ model AttendanceDay {
   // No. 48 has no room for it), purely an on-screen note for whoever reviews
   // this record later.
   remarks String?
+  // Explicitly marks this day's shift as continuing into the NEXT calendar
+  // date (a night shift crossing midnight) — set only by an admin, on
+  // purpose, via the DTR grid's join control. Required before
+  // detectNightShiftContinuation will combine this day with the next: an
+  // employee simply configuring an overnight-shaped schedule and leaving a
+  // field blank is no longer enough on its own to trigger the combined
+  // grading, which used to be gameable that way.
+  joinedWithNextDay Boolean @default(false)
 
   editedById String?
   editedBy   User?    @relation("AttendanceDayEditor", fields: [editedById], references: [id])

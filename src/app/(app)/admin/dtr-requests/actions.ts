@@ -27,6 +27,7 @@ type DayFact = {
   pmArrival: Date | null;
   pmDeparture: Date | null;
   overrideCode: ManualOverrideCode | null;
+  joinedWithNextDay: boolean;
 };
 
 // The pending-count nav badge lives in the shared (app) layout — a plain
@@ -99,6 +100,10 @@ export async function approveDtrEntryRequests(ids: string[]): Promise<FormState>
         pmArrival: overrideCode ? null : req.pmArrival,
         pmDeparture: overrideCode ? null : req.pmDeparture,
         overrideCode,
+        // A raw, not-yet-approved employee submission was never explicitly
+        // joined by an admin — that's only possible once it's official, from
+        // the DTR grid — so this can never itself trigger a combined grade.
+        joinedWithNextDay: false,
       };
     }
     const existing = existingByKey.get(key);
@@ -109,6 +114,7 @@ export async function approveDtrEntryRequests(ids: string[]): Promise<FormState>
       pmArrival: existing?.pmArrival ?? null,
       pmDeparture: existing?.pmDeparture ?? null,
       overrideCode,
+      joinedWithNextDay: existing?.joinedWithNextDay ?? false,
     };
   }
 

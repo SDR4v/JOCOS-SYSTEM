@@ -184,6 +184,14 @@ export default async function AdminManualPage() {
             just once), without changing anything about any other day. Leave every field blank to revert to their
             usual schedule.
           </p>
+          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+            For a night shift that starts one date and ends the next (e.g. 8pm–5am), click the link icon next to
+            the date to explicitly <strong>join it with the next day</strong> — enter the arrival on the start
+            date's row and the departure on the next date's row, leave the rest blank, and the whole shift's
+            credit posts to the start date. This has to be a deliberate click on your part: just configuring an
+            overnight-shaped schedule is never enough on its own to combine two days, precisely so it can't be
+            used to dodge undertime/tardiness detection without you actually deciding it's legitimate.
+          </p>
         </CardContent>
       </Card>
 

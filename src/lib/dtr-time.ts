@@ -423,6 +423,13 @@ type NightShiftDayFact = {
   pmArrival: Date | null;
   pmDeparture: Date | null;
   overrideCode: ManualOverrideCode | null;
+  // Requires an admin to have explicitly linked this day to the next one
+  // (the join control on the DTR grid) — an overnight-shaped schedule plus a
+  // blank field used to be enough on its own to trigger this combined
+  // grading, which meant just configuring a wraparound schedule could dodge
+  // undertime/tardiness detection with no one actually deciding that was
+  // legitimate. See AttendanceDay.joinedWithNextDay.
+  joinedWithNextDay: boolean;
 };
 
 export function detectNightShiftContinuation(
@@ -431,6 +438,7 @@ export function detectNightShiftContinuation(
   scheduleForDayBefore: ResolvedSchedule,
   scheduleForDayAfter: ResolvedSchedule,
 ): NightShiftContinuation | null {
+  if (!dayBefore.joinedWithNextDay) return null;
   if (dayBefore.overrideCode || dayAfter.overrideCode) return null;
 
   const beforeLone = loneSession(scheduleForDayBefore);

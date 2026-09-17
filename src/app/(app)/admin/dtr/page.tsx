@@ -119,6 +119,7 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
       pmDepartureIsTA: wasTA && !existing.pmDeparture,
       remarks: existing?.remarks ?? "",
       dateOverride: dateOverrides.get(iso) ?? null,
+      joinedWithNextDay: existing?.joinedWithNextDay ?? false,
     };
   });
 
