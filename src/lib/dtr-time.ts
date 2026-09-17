@@ -267,6 +267,20 @@ function earlyDepartureMinutes(departureMin: number, schedStart: number, duratio
   return departureRel < duration ? duration - departureRel : 0;
 }
 
+// Same idea as earlyDepartureMinutes, but for a session that's guaranteed to
+// sit within a single calendar day (the normal AM+PM case below — never the
+// wrap-tolerant lone/night-shift session, which legitimately needs the
+// modular math above). Comparing clock minutes directly instead of via
+// relativeMinutes matters here: a departure earlier than the session's own
+// start (e.g. arriving and leaving again before the shift even begins, both
+// well before schedStart) would otherwise wrap around almost a full day and
+// read as "not early" — identical to someone who stayed past schedEnd —
+// instead of the entire session being missed.
+function earlyDepartureMinutesSameDay(departureMin: number, schedStart: number, schedEnd: number): number {
+  const effectiveDeparture = Math.max(departureMin, schedStart);
+  return Math.max(0, schedEnd - Math.min(effectiveDeparture, schedEnd));
+}
+
 // Undertime for one session with the AM/lone-session grace rule applied to
 // its arrival (see GRACE_PERIOD_MINUTES); early departure is always
 // counted in full regardless.
@@ -308,7 +322,7 @@ export function computeAttendanceFromTimes(times: DtrTimes, schedule: ResolvedSc
     // AM arrival: grace-forgiven, same rule as everywhere else.
     const rawAmLate = lateArrivalMinutes(minutesOfDay(times.amArrival!), amStart, amDuration);
     const amLateArrival = rawAmLate <= GRACE_PERIOD_MINUTES ? 0 : rawAmLate;
-    const amEarlyDeparture = earlyDepartureMinutes(minutesOfDay(times.amDeparture!), amStart, amDuration);
+    const amEarlyDeparture = earlyDepartureMinutesSameDay(minutesOfDay(times.amDeparture!), amStart, amEnd);
 
     // Leaving late for lunch pushes the return deadline out minute-for-
     // minute, capped at GRACE_PERIOD_MINUTES — e.g. leaving at 12:16 or
@@ -320,7 +334,7 @@ export function computeAttendanceFromTimes(times: DtrTimes, schedule: ResolvedSc
     const pmDeadlineDuration = sessionDuration(pmDeadline, pmEnd);
 
     const pmLateArrival = lateArrivalMinutes(minutesOfDay(times.pmArrival!), pmDeadline, pmDeadlineDuration);
-    const pmEarlyDeparture = earlyDepartureMinutes(minutesOfDay(times.pmDeparture!), pmStart, sessionDuration(pmStart, pmEnd));
+    const pmEarlyDeparture = earlyDepartureMinutesSameDay(minutesOfDay(times.pmDeparture!), pmStart, pmEnd);
 
     const lateMinutes = amLateArrival + amEarlyDeparture + pmLateArrival + pmEarlyDeparture;
     return lateMinutes > 0
