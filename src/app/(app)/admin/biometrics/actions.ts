@@ -111,21 +111,26 @@ export async function processBiometricUpload(id: string): Promise<ProcessResult>
     });
   }
 
-  await prisma.$transaction([
-    prisma.punchRecord.deleteMany({ where: { biometricUploadId: id } }),
-    prisma.punchRecord.createMany({
-      data: punches.map((p, i) => ({
-        biometricUploadId: id,
-        employeeId: matchEmployeeByName(p.rawName, nameIndex)?.id ?? null,
-        rawDept: p.rawDept || null,
-        rawName: p.rawName,
-        rawNo: p.rawNo,
-        timestamp: p.timestamp,
-        isDuplicate: isDuplicate[i],
-      })),
-    }),
-    prisma.biometricUpload.update({ where: { id }, data: { status: "PROCESSED" } }),
-  ]);
+  await prisma.$transaction(
+    [
+      prisma.punchRecord.deleteMany({ where: { biometricUploadId: id } }),
+      prisma.punchRecord.createMany({
+        data: punches.map((p, i) => ({
+          biometricUploadId: id,
+          employeeId: matchEmployeeByName(p.rawName, nameIndex)?.id ?? null,
+          rawDept: p.rawDept || null,
+          rawName: p.rawName,
+          rawNo: p.rawNo,
+          timestamp: p.timestamp,
+          isDuplicate: isDuplicate[i],
+        })),
+      }),
+      prisma.biometricUpload.update({ where: { id }, data: { status: "PROCESSED" } }),
+    ],
+    // Prisma's default is 5s — too short once a large multi-page export
+    // (hundreds of pages, thousands of punches) is being written in one go.
+    { timeout: 60_000 },
+  );
 
   await logAudit({
     actorId: admin.id,

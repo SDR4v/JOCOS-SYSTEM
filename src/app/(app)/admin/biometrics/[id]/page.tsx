@@ -17,6 +17,14 @@ import { LinkEmployeeForm } from "./link-employee-form";
 import { IgnoreNameButton, UnignoreNameButton } from "./ignore-name-button";
 import { UnlinkButton } from "./unlink-button";
 
+// Processing a large multi-page biometrics export (PDF text extraction over
+// hundreds of pages, then writing thousands of punch rows) can take well
+// past the platform's default function timeout — this raises the ceiling for
+// every Server Action used on this page (see maxDuration docs: it must be
+// set at the page level to affect Server Actions, not on the action file
+// itself). Keep in sync with the $transaction timeout in actions.ts.
+export const maxDuration = 120;
+
 function formatPunchTime(d: Date): string {
   return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", timeZone: "UTC" });
 }
