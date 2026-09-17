@@ -9,7 +9,6 @@ import { reviewEmployeePunches } from "@/lib/biometric-review";
 import { fetchDateScheduleOverrides } from "@/lib/date-schedule";
 import { MyDtrFilters } from "./my-dtr-filters";
 import { MyDtrForm, type MyDtrRow } from "./my-dtr-form";
-import { MyScheduleDialog } from "./my-schedule-dialog";
 
 const MANUAL_OVERRIDE_SET = new Set<string>(MANUAL_OVERRIDE_CODES);
 
@@ -163,16 +162,11 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">My DTR</h1>
-          <p className="text-sm text-muted-foreground">
-            {employee.name} &middot; SG {employee.salaryGrade} &middot; {employee.officeAssignment}
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <MyScheduleDialog employee={employee} />
-        </div>
+      <div>
+        <h1 className="text-2xl font-semibold">My DTR</h1>
+        <p className="text-sm text-muted-foreground">
+          {employee.name} &middot; SG {employee.salaryGrade} &middot; {employee.officeAssignment}
+        </p>
       </div>
 
       <MyDtrFilters year={year} month={month} half={half} />

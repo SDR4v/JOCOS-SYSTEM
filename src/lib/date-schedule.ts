@@ -13,8 +13,8 @@ export type DateScheduleInput = {
   session2End: string;
 };
 
-// A blank field means "no session" (same convention buildStoredSession /
-// resolveSessions use elsewhere), not zero — but a session needs BOTH ends
+// A blank field means "no session" (the same convention used everywhere
+// else a schedule is resolved), not zero — but a session needs BOTH ends
 // filled in or both left blank; one without the other can't resolve to a
 // time range.
 export function parseDateScheduleInput(input: DateScheduleInput): DateScheduleOverrideFields | { error: string } {

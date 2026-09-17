@@ -8,9 +8,7 @@ import { parseISODate, formatFullDate } from "@/lib/period";
 import {
   MANUAL_OVERRIDE_CODES,
   combineDateAndTime,
-  buildStoredSession,
   resolveSchedule,
-  DAY_NAMES,
   type DateScheduleOverrideFields,
 } from "@/lib/dtr-time";
 import { logAudit } from "@/lib/audit";
@@ -99,99 +97,6 @@ export async function submitDtrEntries(rows: unknown): Promise<FormState> {
   // count) is computed there, and a plain page-level revalidatePath doesn't
   // reach it.
   revalidatePath("/", "layout");
-  return { error: null };
-}
-
-const daySchema = z.object({
-  dayOfWeek: z.number().int().min(0).max(6),
-  dayMode: z.enum(["STANDARD", "CUSTOM"]),
-  hasSession1: z.boolean(),
-  session1Start: z.string().optional(),
-  session1End: z.string().optional(),
-  hasSession2: z.boolean(),
-  session2Start: z.string().optional(),
-  session2End: z.string().optional(),
-});
-
-const scheduleSchema = z
-  .object({
-    scheduleMode: z.enum(["STANDARD", "CUSTOM", "PER_DAY"]),
-    hasSession1: z.boolean(),
-    session1Start: z.string().optional(),
-    session1End: z.string().optional(),
-    hasSession2: z.boolean(),
-    session2Start: z.string().optional(),
-    session2End: z.string().optional(),
-    days: z.array(daySchema).length(7),
-  })
-  .refine((v) => v.scheduleMode !== "CUSTOM" || (v.session1Start && v.session1End), {
-    message: "Session 1 start and end are required for a custom schedule",
-  })
-  .refine((v) => v.scheduleMode !== "CUSTOM" || !v.hasSession2 || (v.session2Start && v.session2End), {
-    message: "Session 2 start and end are required when a second session is set",
-  });
-
-export async function updateMySchedule(input: unknown): Promise<FormState> {
-  const user = await requireUser();
-  if (!user.employeeId) {
-    return { error: "Your account isn't linked to an employee record." };
-  }
-
-  const parsed = scheduleSchema.safeParse(input);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const { scheduleMode, hasSession1, session1Start, session1End, hasSession2, session2Start, session2End, days } = parsed.data;
-  const isCustom = scheduleMode === "CUSTOM";
-  const customSession = buildStoredSession({ hasSession1, session1Start, session1End, hasSession2, session2Start, session2End });
-  const employeeId = user.employeeId;
-
-  if (scheduleMode === "PER_DAY") {
-    for (const day of days) {
-      if (day.dayMode !== "CUSTOM") continue;
-      if (!day.session1Start || !day.session1End) {
-        return { error: `${DAY_NAMES[day.dayOfWeek]}: time in and out are required` };
-      }
-      if (day.hasSession2 && (!day.session2Start || !day.session2End)) {
-        return { error: `${DAY_NAMES[day.dayOfWeek]}: second time in and out are required` };
-      }
-    }
-  }
-
-  await prisma.$transaction([
-    prisma.employee.update({
-      where: { id: employeeId },
-      data: {
-        scheduleMode,
-        session1Start: isCustom ? customSession.session1Start : null,
-        session1End: isCustom ? customSession.session1End : null,
-        session2Start: isCustom ? customSession.session2Start : null,
-        session2End: isCustom ? customSession.session2End : null,
-      },
-    }),
-    prisma.employeeDaySchedule.deleteMany({ where: { employeeId } }),
-    ...(scheduleMode === "PER_DAY"
-      ? days
-          .filter((d) => d.dayMode !== "STANDARD")
-          .map((d) => {
-            const stored = buildStoredSession(d);
-            return prisma.employeeDaySchedule.create({
-              data: { employeeId, dayOfWeek: d.dayOfWeek, ...stored },
-            });
-          })
-      : []),
-  ]);
-
-  await logAudit({
-    actorId: user.id,
-    entityType: "Employee",
-    entityId: employeeId,
-    action: "UPDATE",
-    summary: `${user.name} updated their own work schedule`,
-  });
-
-  revalidatePath("/my-dtr");
   return { error: null };
 }
 

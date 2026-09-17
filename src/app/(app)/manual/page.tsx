@@ -98,15 +98,10 @@ export default async function EmployeeManualPage() {
             future dates are never submitted even if you happened to type something into them.
           </p>
           <p className="text-muted-foreground">
-            Tip: your work schedule (which determines what counts as "on time") is set via the{" "}
-            <strong>My Schedule</strong> button at the top of this page — Standard hours, one Custom set of hours
-            every day, or hours that vary by day of the week. Changing it takes effect immediately, no approval
-            needed.
-          </p>
-          <p className="text-muted-foreground">
-            For a single day that doesn't follow your usual pattern (e.g. covering someone else's shift just
-            once), use the small calendar icon next to that date instead — it only affects that one date, not
-            your regular schedule.
+            Your regular work schedule (which determines what counts as "on time") defaults to Standard office
+            hours (8–12, 1–5, Monday–Friday) and isn't something you or HR can change through the app. For a
+            single day that doesn't follow that pattern (e.g. covering someone else's shift just once), use the
+            small calendar icon next to that date instead — it only affects that one date.
           </p>
           <p className="text-muted-foreground">
             If you worked a shift that starts one date and doesn't end until the next (e.g. 8pm–5am), click the

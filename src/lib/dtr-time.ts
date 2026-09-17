@@ -92,36 +92,6 @@ export function hhmmToMinutes(hhmm: string): number | null {
   return hour * 60 + minute;
 }
 
-// Converts a schedule form's raw fields into the stored session1/session2
-// minute values — a lone session (hasSession1 false) is entered through the
-// form's session1 fields regardless of time of day (see SessionInputs in
-// schedule-fields.tsx), but is designated PM, so it's stored under session2
-// with session1 left null. That null is what lets the DTR grid open the
-// correct half (AM vs PM) for that day purely from the stored schedule.
-export function buildStoredSession(input: {
-  hasSession1: boolean;
-  session1Start?: string;
-  session1End?: string;
-  hasSession2: boolean;
-  session2Start?: string;
-  session2End?: string;
-}): { session1Start: number | null; session1End: number | null; session2Start: number | null; session2End: number | null } {
-  if (input.hasSession1) {
-    return {
-      session1Start: hhmmToMinutes(input.session1Start ?? ""),
-      session1End: hhmmToMinutes(input.session1End ?? ""),
-      session2Start: input.hasSession2 ? hhmmToMinutes(input.session2Start ?? "") : null,
-      session2End: input.hasSession2 ? hhmmToMinutes(input.session2End ?? "") : null,
-    };
-  }
-  return {
-    session1Start: null,
-    session1End: null,
-    session2Start: hhmmToMinutes(input.session1Start ?? ""),
-    session2End: hhmmToMinutes(input.session1End ?? ""),
-  };
-}
-
 export function combineDateAndTime(dateIso: string, timeHHMM: string): Date | null {
   if (!timeHHMM) return null;
   const [hourStr, minuteStr] = timeHHMM.split(":");

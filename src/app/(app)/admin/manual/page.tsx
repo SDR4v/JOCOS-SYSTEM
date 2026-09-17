@@ -99,9 +99,9 @@ export default async function AdminManualPage() {
             </li>
           </ul>
           <p>
-            An employee's recurring work-hours pattern (Standard office hours, Custom, or Per-Day — the same
-            three modes described on the employee side) is set by the employee themselves, from their own My DTR
-            page. What you can do here instead is set a <strong>one-off schedule for a single date</strong> — see
+            Every employee's recurring work-hours pattern defaults to Standard office hours (8–12, 1–5,
+            Monday–Friday) — there's no admin or employee control to change that regular pattern. For a single
+            date that doesn't follow it, set a <strong>one-off schedule for just that date</strong> instead — see
             the DTR section below.
           </p>
         </CardContent>
