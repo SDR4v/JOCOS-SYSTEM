@@ -45,7 +45,9 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
   // bound to the start of the following day instead.
   const punchRangeEnd = new Date(end.getTime() + 24 * 60 * 60 * 1000);
 
-  const [days, requests, punches, rate, dateOverrides, dayBeforePeriod] = await Promise.all([
+  const dayBeforeDate = new Date(start.getTime() - 24 * 60 * 60 * 1000);
+
+  const [days, requests, punches, rate, dateOverrides, dayBeforeOfficial, dayBeforeRequest] = await Promise.all([
     prisma.attendanceDay.findMany({ where: { employeeId: employee.id, date: { gte: start, lte: end } } }),
     prisma.dtrEntryRequest.findMany({ where: { employeeId: employee.id, date: { gte: start, lte: end } } }),
     prisma.punchRecord.findMany({
@@ -62,14 +64,24 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
     }),
     fetchDateScheduleOverrides(employee.id, start, end),
     // The day just before this half-month period — a join set on it doesn't
-    // appear anywhere in THIS table's own rows, so without this the
+    // appear anywhere in THIS table's own rows, so without these the
     // "continued from above" connector would never show across the
     // 15th/16th boundary even though the actual grading already handles it.
+    // Checked the same two ways a row within the table is: prefer a still-
+    // pending/rejected request's own proposal, since that's what the day
+    // itself would be showing right now if it were in view.
     prisma.attendanceDay.findUnique({
-      where: { employeeId_date: { employeeId: employee.id, date: new Date(start.getTime() - 24 * 60 * 60 * 1000) } },
+      where: { employeeId_date: { employeeId: employee.id, date: dayBeforeDate } },
       select: { joinedWithNextDay: true },
     }),
+    prisma.dtrEntryRequest.findUnique({
+      where: { employeeId_date: { employeeId: employee.id, date: dayBeforeDate } },
+      select: { status: true, joinedWithNextDay: true },
+    }),
   ]);
+  const dayBeforeUsesRequest = dayBeforeRequest?.status === "PENDING" || dayBeforeRequest?.status === "REJECTED";
+  const continuedFromPreviousPeriod =
+    (dayBeforeUsesRequest ? dayBeforeRequest?.joinedWithNextDay : dayBeforeOfficial?.joinedWithNextDay) ?? false;
 
   const dayMap = new Map(days.map((day) => [formatISODate(day.date), day]));
   const requestMap = new Map(requests.map((r) => [formatISODate(r.date), r]));
@@ -185,7 +197,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
         employeeId={employee.id}
         initialRows={rows}
         employeeSchedule={employee}
-        continuedFromPreviousPeriod={dayBeforePeriod?.joinedWithNextDay ?? false}
+        continuedFromPreviousPeriod={continuedFromPreviousPeriod}
       />
     </div>
   );
