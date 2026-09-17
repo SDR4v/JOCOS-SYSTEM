@@ -74,6 +74,20 @@ export async function approveDtrEntryRequests(ids: string[]): Promise<FormState>
     : [];
   const existingByKey = new Map(existingNeighbors.map((d) => [dayKey(d.employeeId, d.date), d]));
 
+  // One-off per-date schedule overrides (see EmployeeDateSchedule) for every
+  // date resolveSchedule gets called with below — the request's own date
+  // plus both neighbors, since a night-shift pairing check resolves those
+  // too.
+  const scheduleDateKeys = requests.flatMap((r) => [
+    { employeeId: r.employeeId, date: r.date },
+    { employeeId: r.employeeId, date: new Date(r.date.getTime() - ONE_DAY_MS) },
+    { employeeId: r.employeeId, date: new Date(r.date.getTime() + ONE_DAY_MS) },
+  ]);
+  const dateOverrideRows = await prisma.employeeDateSchedule.findMany({
+    where: { OR: scheduleDateKeys.map((k) => ({ employeeId: k.employeeId, date: k.date })) },
+  });
+  const dateOverrideByKey = new Map(dateOverrideRows.map((r) => [dayKey(r.employeeId, r.date), r]));
+
   function factFor(employeeId: string, date: Date): DayFact {
     const key = dayKey(employeeId, date);
     const req = requestByKey.get(key);
@@ -114,12 +128,16 @@ export async function approveDtrEntryRequests(ids: string[]): Promise<FormState>
     }
 
     const thisFact = factFor(request.employeeId, request.date);
-    const schedule = resolveSchedule(employee, request.date.getUTCDay());
+    const schedule = resolveSchedule(employee, request.date.getUTCDay(), dateOverrideByKey.get(key));
 
     // This request as the shift's START (evening arrival) pairing with the
     // NEXT calendar day's departure.
     const nextDate = new Date(request.date.getTime() + ONE_DAY_MS);
-    const nextSchedule = resolveSchedule(employee, nextDate.getUTCDay());
+    const nextSchedule = resolveSchedule(
+      employee,
+      nextDate.getUTCDay(),
+      dateOverrideByKey.get(dayKey(request.employeeId, nextDate)),
+    );
     const forwardPair = detectNightShiftContinuation(thisFact, factFor(request.employeeId, nextDate), schedule, nextSchedule);
     if (forwardPair) {
       grades.set(key, { ...forwardPair.beforeGrade, amArrivalFromDuty: false });
@@ -135,7 +153,11 @@ export async function approveDtrEntryRequests(ids: string[]): Promise<FormState>
     // This request as the shift's CLOSE (departure) pairing with the
     // PREVIOUS calendar day's evening arrival.
     const prevDate = new Date(request.date.getTime() - ONE_DAY_MS);
-    const prevSchedule = resolveSchedule(employee, prevDate.getUTCDay());
+    const prevSchedule = resolveSchedule(
+      employee,
+      prevDate.getUTCDay(),
+      dateOverrideByKey.get(dayKey(request.employeeId, prevDate)),
+    );
     const backwardPair = detectNightShiftContinuation(factFor(request.employeeId, prevDate), thisFact, prevSchedule, schedule);
     if (backwardPair) {
       grades.set(dayKey(request.employeeId, prevDate), { ...backwardPair.beforeGrade, amArrivalFromDuty: false });
@@ -161,7 +183,11 @@ export async function approveDtrEntryRequests(ids: string[]): Promise<FormState>
     // A day with no AM (or no PM) block never grades that half at all —
     // don't let a shift typed into the wrong columns quietly become part of
     // the official record.
-    const requestSchedule = resolveSchedule(employee, request.date.getUTCDay());
+    const requestSchedule = resolveSchedule(
+      employee,
+      request.date.getUTCDay(),
+      dateOverrideByKey.get(dayKey(request.employeeId, request.date)),
+    );
     const hasAmBlock = !request.overrideCode && !!requestSchedule.session1;
     const hasPmBlock = !request.overrideCode && !!requestSchedule.session2;
     const data = {

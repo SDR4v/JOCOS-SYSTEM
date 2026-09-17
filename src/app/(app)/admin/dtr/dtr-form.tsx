@@ -14,6 +14,7 @@ import {
 import { TimeInputWithClear } from "@/components/time-input-with-clear";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { DayScheduleButton } from "@/components/day-schedule-button";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { formatDisplayDate, parseISODate } from "@/lib/period";
 import { cn, humanizeEnum } from "@/lib/utils";
@@ -29,8 +30,9 @@ import {
   type ManualOverrideCode,
   type EmployeeScheduleFields,
   type ResolvedSchedule,
+  type DateScheduleOverrideFields,
 } from "@/lib/dtr-time";
-import { saveDtrPeriod } from "./actions";
+import { saveDtrPeriod, setEmployeeDateSchedule } from "./actions";
 
 export type DtrRowValue = {
   date: string;
@@ -48,6 +50,9 @@ export type DtrRowValue = {
   pmDepartureIsTA: boolean;
   // A free-text note for the day — never shown on the printed DTR.
   remarks: string;
+  // A one-off schedule for just this date — see EmployeeDateSchedule. Null
+  // means "use the employee's usual schedule."
+  dateOverride: DateScheduleOverrideFields | null;
 };
 
 // A punch marked TA isn't a real time — resolve it to its own scheduled
@@ -263,7 +268,9 @@ export function DtrForm({
     });
   }
 
-  const schedules = rows.map((row) => resolveSchedule(employeeSchedule, parseISODate(row.date).getUTCDay()));
+  const schedules = rows.map((row) =>
+    resolveSchedule(employeeSchedule, parseISODate(row.date).getUTCDay(), row.dateOverride),
+  );
   const previews = rows.map((row, i) => rowPreview(row, schedules[i]));
   const totalCredit = previews.reduce((sum, p) => sum + p.dayCredit, 0);
   const totalUndertimeMinutes = previews.reduce((sum, p) => sum + p.undertimeMinutes, 0);
@@ -308,6 +315,12 @@ export function DtrForm({
                 <TableRow key={row.date}>
                   <TableCell className="whitespace-nowrap text-sm" title={scheduleTitle}>
                     <div className="flex items-center gap-1">
+                      <DayScheduleButton
+                        date={row.date}
+                        override={row.dateOverride}
+                        action={(date, input) => setEmployeeDateSchedule(employeeId, date, input)}
+                        onSaved={(value) => updateRow(i, { dateOverride: value })}
+                      />
                       {formatDisplayDate(row.date)}
                       {i > 0 && !timesDisabled && (
                         <button

@@ -6,6 +6,7 @@ import { displayCodeForDay } from "@/lib/attendance-codes";
 import { getHalfMonthRange, formatISODate, halfLabel, clampMonth, type Half } from "@/lib/period";
 import { formatTimeHHMM, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
 import { reviewEmployeePunches } from "@/lib/biometric-review";
+import { fetchDateScheduleOverrides } from "@/lib/date-schedule";
 import { MyDtrFilters } from "./my-dtr-filters";
 import { MyDtrForm, type MyDtrRow } from "./my-dtr-form";
 import { MyScheduleDialog } from "./my-schedule-dialog";
@@ -44,7 +45,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
   // bound to the start of the following day instead.
   const punchRangeEnd = new Date(end.getTime() + 24 * 60 * 60 * 1000);
 
-  const [days, requests, punches, rate] = await Promise.all([
+  const [days, requests, punches, rate, dateOverrides] = await Promise.all([
     prisma.attendanceDay.findMany({ where: { employeeId: employee.id, date: { gte: start, lte: end } } }),
     prisma.dtrEntryRequest.findMany({ where: { employeeId: employee.id, date: { gte: start, lte: end } } }),
     prisma.punchRecord.findMany({
@@ -59,6 +60,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
     prisma.salaryGradeRate.findUnique({
       where: { year_salaryGrade: { year, salaryGrade: employee.salaryGrade } },
     }),
+    fetchDateScheduleOverrides(employee.id, start, end),
   ]);
 
   const dayMap = new Map(days.map((day) => [formatISODate(day.date), day]));
@@ -134,6 +136,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
               ? "APPROVED"
               : null,
       remarks: (useRequestData ? request?.remarks : day?.remarks) ?? "",
+      dateOverride: dateOverrides.get(iso) ?? null,
     };
   });
 

@@ -15,6 +15,7 @@ import { TimeInputWithClear } from "@/components/time-input-with-clear";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { DayScheduleButton } from "@/components/day-schedule-button";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { formatDisplayDate, parseISODate } from "@/lib/period";
 import { humanizeEnum } from "@/lib/utils";
@@ -30,8 +31,9 @@ import {
   type ManualOverrideCode,
   type EmployeeScheduleFields,
   type ResolvedSchedule,
+  type DateScheduleOverrideFields,
 } from "@/lib/dtr-time";
-import { submitDtrEntries } from "./actions";
+import { submitDtrEntries, setMyDateSchedule } from "./actions";
 
 export type MyDtrRow = {
   date: string;
@@ -44,6 +46,9 @@ export type MyDtrRow = {
   pendingStatus: "PENDING" | "REJECTED" | "APPROVED" | null;
   // A free-text note explaining the day — never shown on the printed DTR.
   remarks: string;
+  // A one-off schedule for just this date — see EmployeeDateSchedule. Null
+  // means "use your usual schedule."
+  dateOverride: DateScheduleOverrideFields | null;
 };
 
 function rowPreview(row: MyDtrRow, schedule: ResolvedSchedule) {
@@ -221,7 +226,9 @@ export function MyDtrForm({
     });
   }
 
-  const schedules = rows.map((row) => resolveSchedule(employeeSchedule, parseISODate(row.date).getUTCDay()));
+  const schedules = rows.map((row) =>
+    resolveSchedule(employeeSchedule, parseISODate(row.date).getUTCDay(), row.dateOverride),
+  );
 
   return (
     <div className="space-y-4">
@@ -264,6 +271,12 @@ export function MyDtrForm({
                 <TableRow key={row.date}>
                   <TableCell className="whitespace-nowrap text-sm" title={scheduleTitle}>
                     <div className="flex items-center gap-1">
+                      <DayScheduleButton
+                        date={row.date}
+                        override={row.dateOverride}
+                        action={setMyDateSchedule}
+                        onSaved={(value) => updateRow(i, { dateOverride: value })}
+                      />
                       {formatDisplayDate(row.date)}
                       {i > 0 && !timesDisabled && (
                         <button

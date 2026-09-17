@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
-import { parseISODate, formatISODate } from "@/lib/period";
+import { parseISODate, formatISODate, formatFullDate } from "@/lib/period";
 import {
   computeAttendanceFromTimes,
   detectNightShiftContinuation,
@@ -20,9 +20,16 @@ import {
   type Grade,
   type ManualOverrideCode,
   type EmployeeScheduleFields,
+  type DateScheduleOverrideFields,
 } from "@/lib/dtr-time";
 import type { AttendanceCode } from "@/generated/prisma/enums";
 import { logAudit } from "@/lib/audit";
+import {
+  fetchDateScheduleOverrides,
+  setDateScheduleOverride,
+  parseDateScheduleInput,
+  type DateScheduleInput,
+} from "@/lib/date-schedule";
 
 const timeField = z.union([z.string().regex(/^\d{2}:\d{2}$/), z.literal("")]).optional();
 
@@ -91,7 +98,11 @@ function factFromExisting(date: Date, existing: { amArrival: Date | null; amDepa
 // span midnight (see detectNightShiftContinuation) — a day with only an
 // evening arrival pairs with the NEXT day's morning-only departure into one
 // shift, credited entirely to the first day.
-function gradeSequence(sequence: DayFact[], employee: EmployeeScheduleFields): Map<string, Grade> {
+function gradeSequence(
+  sequence: DayFact[],
+  employee: EmployeeScheduleFields,
+  dateOverrides: Map<string, DateScheduleOverrideFields>,
+): Map<string, Grade> {
   const grades = new Map<string, Grade>();
 
   for (let i = 0; i < sequence.length; i++) {
@@ -104,7 +115,7 @@ function gradeSequence(sequence: DayFact[], employee: EmployeeScheduleFields): M
       continue;
     }
 
-    const schedule = resolveSchedule(employee, day.date.getUTCDay());
+    const schedule = resolveSchedule(employee, day.date.getUTCDay(), dateOverrides.get(day.iso));
 
     if (day.amArrivalIsTA || day.amDepartureIsTA || day.pmArrivalIsTA || day.pmDepartureIsTA) {
       // Graded from the scheduled-time stand-ins already on this fact (see
@@ -121,7 +132,9 @@ function gradeSequence(sequence: DayFact[], employee: EmployeeScheduleFields): M
 
     const next = sequence[i + 1];
     const adjacent = next && next.date.getTime() === day.date.getTime() + ONE_DAY_MS ? next : null;
-    const adjacentSchedule = adjacent ? resolveSchedule(employee, adjacent.date.getUTCDay()) : null;
+    const adjacentSchedule = adjacent
+      ? resolveSchedule(employee, adjacent.date.getUTCDay(), dateOverrides.get(adjacent.iso))
+      : null;
     const pair = adjacent && adjacentSchedule ? detectNightShiftContinuation(day, adjacent, schedule, adjacentSchedule) : null;
 
     if (pair && adjacent) {
@@ -158,13 +171,23 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
   });
   if (!employee) return { error: "Employee not found" };
 
+  // Covers the batch plus one day on either side, since gradeSequence below
+  // also resolves the boundary days' schedules for night-shift pairing.
+  const firstDate = parseISODate(rows[0].date);
+  const lastDate = parseISODate(rows[rows.length - 1].date);
+  const dateOverrides = await fetchDateScheduleOverrides(
+    employeeId,
+    new Date(firstDate.getTime() - ONE_DAY_MS),
+    new Date(lastDate.getTime() + ONE_DAY_MS),
+  );
+
   const parsedRows: DayFact[] = rows.map((row) => {
     const date = parseISODate(row.date);
     // A day with no AM (or no PM) block never grades that half at all (see
     // computeAttendanceFromTimes) — so stale or misplaced values (e.g. a
     // single-session shift typed into the wrong columns) never get silently
     // saved and left sitting unused/confusing on the record or the printed DTR.
-    const schedule = resolveSchedule(employee, date.getUTCDay());
+    const schedule = resolveSchedule(employee, date.getUTCDay(), dateOverrides.get(row.date));
     const hasAmBlock = !row.overrideCode && !!schedule.session1;
     const hasPmBlock = !row.overrideCode && !!schedule.session2;
     const amArrivalIsTA = hasAmBlock && !!row.amArrivalIsTA;
@@ -210,7 +233,7 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
     ...parsedRows,
     factFromExisting(dayAfterDate, existingAfter),
   ];
-  const grades = gradeSequence(sequence, employee);
+  const grades = gradeSequence(sequence, employee, dateOverrides);
 
   const now = new Date();
   const ops = parsedRows.map((row) => {
@@ -285,4 +308,40 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
   // (app) layout — a page-level revalidatePath doesn't reach it on its own.
   revalidatePath("/", "layout");
   return { error: null };
+}
+
+// Sets (or, given an all-blank input, clears) a one-off schedule for a
+// single calendar date — see EmployeeDateSchedule. Doesn't itself re-grade
+// any already-saved AttendanceDay for that date; the admin still needs to
+// re-save the day (or the employee needs to resubmit it) for the new
+// schedule to actually change what's on file, same as any other schedule
+// change.
+export async function setEmployeeDateSchedule(
+  employeeId: string,
+  dateIso: string,
+  input: DateScheduleInput,
+): Promise<{ error: string | null; value: DateScheduleOverrideFields | null }> {
+  const admin = await requireAdmin();
+
+  const parsed = parseDateScheduleInput(input);
+  if ("error" in parsed) return { error: parsed.error, value: null };
+
+  const employee = await prisma.employee.findUnique({ where: { id: employeeId }, select: { name: true } });
+  if (!employee) return { error: "Employee not found", value: null };
+
+  const date = parseISODate(dateIso);
+  const value = await setDateScheduleOverride(employeeId, date, parsed);
+
+  await logAudit({
+    actorId: admin.id,
+    entityType: "EmployeeDateSchedule",
+    entityId: employeeId,
+    action: "UPDATE",
+    summary: value
+      ? `Set a one-off schedule for ${employee.name} on ${formatFullDate(date)}`
+      : `Reverted ${employee.name}'s schedule on ${formatFullDate(date)} to the default`,
+  });
+
+  revalidatePath("/admin/dtr");
+  return { error: null, value };
 }

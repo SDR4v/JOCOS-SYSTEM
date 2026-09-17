@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getHalfMonthRange, formatISODate, clampMonth, type Half } from "@/lib/period";
 import { formatTimeHHMM, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
 import { reviewEmployeePunches } from "@/lib/biometric-review";
+import { fetchDateScheduleOverrides } from "@/lib/date-schedule";
 import { Button } from "@/components/ui/button";
 import { DtrFilters } from "./dtr-filters";
 import { DtrForm, type DtrRowValue } from "./dtr-form";
@@ -60,7 +61,7 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
   // start of the following day instead.
   const punchRangeEnd = new Date(end.getTime() + 24 * 60 * 60 * 1000);
 
-  const [selectedEmployee, existingDays, punches] = await Promise.all([
+  const [selectedEmployee, existingDays, punches, dateOverrides] = await Promise.all([
     prisma.employee.findUniqueOrThrow({ where: { id: employeeId }, include: { daySchedules: true } }),
     prisma.attendanceDay.findMany({ where: { employeeId, date: { gte: start, lte: end } } }),
     prisma.punchRecord.findMany({
@@ -72,6 +73,7 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
       },
       select: { timestamp: true },
     }),
+    fetchDateScheduleOverrides(employeeId, start, end),
   ]);
   const dayMap = new Map(existingDays.map((day) => [formatISODate(day.date), day]));
   // Same pre-fill as My DTR (see my-dtr/page.tsx) — only ever offered for a
@@ -116,6 +118,7 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
       pmArrivalIsTA: wasTA && !existing.pmArrival,
       pmDepartureIsTA: wasTA && !existing.pmDeparture,
       remarks: existing?.remarks ?? "",
+      dateOverride: dateOverrides.get(iso) ?? null,
     };
   });
 

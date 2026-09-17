@@ -196,9 +196,27 @@ function resolveSessions(fields: {
   return { session1, session2 };
 }
 
+export type DateScheduleOverrideFields = {
+  session1Start: number | null;
+  session1End: number | null;
+  session2Start: number | null;
+  session2End: number | null;
+};
+
 // Resolves an employee's schedule for a specific day of week. Required for
 // PER_DAY mode (Monday can differ from Tuesday); ignored for STANDARD/CUSTOM.
-export function resolveSchedule(employee: EmployeeScheduleFields, dayOfWeek: number): ResolvedSchedule {
+// A dateOverride (a one-off EmployeeDateSchedule for this exact calendar
+// date, e.g. covering someone else's shift just once) takes priority over
+// all of that — the whole point is that it doesn't follow the usual pattern.
+export function resolveSchedule(
+  employee: EmployeeScheduleFields,
+  dayOfWeek: number,
+  dateOverride?: DateScheduleOverrideFields | null,
+): ResolvedSchedule {
+  if (dateOverride) {
+    const resolved = resolveSessions(dateOverride);
+    if (resolved) return resolved;
+  }
   if (employee.scheduleMode === "PER_DAY") {
     const day = employee.daySchedules?.find((d) => d.dayOfWeek === dayOfWeek);
     return (day && resolveSessions(day)) ?? STANDARD_RESOLVED;

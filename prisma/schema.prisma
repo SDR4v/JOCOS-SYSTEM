@@ -105,6 +105,7 @@ model Employee {
   tripAuthorizations    TripAuthorization[]
   dtrEntryRequests      DtrEntryRequest[]
   daySchedules          EmployeeDaySchedule[]
+  dateSchedules         EmployeeDateSchedule[]
 
   @@index([officeAssignment])
   @@index([status])
@@ -126,6 +127,25 @@ model EmployeeDaySchedule {
   session2End   Int?
 
   @@unique([employeeId, dayOfWeek])
+}
+
+// A one-off schedule for a single calendar date — takes priority over both
+// the recurring weekly pattern (EmployeeDaySchedule) and the employee's
+// default (Standard/Custom), for the rare day that doesn't follow the usual
+// pattern (e.g. covering someone else's shift just that once). Set inline
+// from the DTR grid, by whoever entered that day's times.
+model EmployeeDateSchedule {
+  id            String   @id @default(cuid())
+  employeeId    String
+  employee      Employee @relation(fields: [employeeId], references: [id])
+  date          DateTime
+  session1Start Int?
+  session1End   Int?
+  session2Start Int?
+  session2End   Int?
+
+  @@unique([employeeId, date])
+  @@index([date])
 }
 
 // ── Salary Grade rate table (page 1 of the source sheet) ───────
