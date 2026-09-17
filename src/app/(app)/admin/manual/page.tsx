@@ -190,7 +190,9 @@ export default async function AdminManualPage() {
             date's row and the departure on the next date's row, leave the rest blank, and the whole shift's
             credit posts to the start date. This has to be a deliberate click on your part: just configuring an
             overnight-shaped schedule is never enough on its own to combine two days, precisely so it can't be
-            used to dodge undertime/tardiness detection without you actually deciding it's legitimate.
+            used to dodge undertime/tardiness detection without you actually deciding it's legitimate. An
+            employee can propose the same join from their own My DTR when submitting — see DTR Requests below —
+            but it stays just a labeled request until you approve it.
           </p>
         </CardContent>
       </Card>
@@ -224,6 +226,12 @@ export default async function AdminManualPage() {
             Made a mistake? Find it under the <strong>History</strong> tab and click <strong>Revert</strong> on
             an approved entry — it undoes the write and flips the request to Returned so the employee can fix and
             resubmit it themselves, as long as nobody has since hand-edited that day directly on the DTR grid.
+          </p>
+          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+            A <strong>"Joins next day"</strong> badge next to a date means the employee is proposing that shift
+            continues into the next calendar day (a night shift crossing midnight) — see the join icon under DTR
+            below. It's only ever their labeled request; nothing combines until you <strong>Approve</strong> that
+            specific flagged entry, which is what actually applies it.
           </p>
         </CardContent>
       </Card>

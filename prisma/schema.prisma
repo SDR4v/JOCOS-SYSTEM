@@ -252,6 +252,12 @@ model DtrEntryRequest {
   pmDeparture DateTime?
   overrideCode AttendanceCode?      // set only for REST_DAY / WORK_SUSPENDED / UNSET proposals
   remarks     String?               // the employee's own note explaining this day — carried over to AttendanceDay.remarks on approval
+  // The employee's own proposal that this day continues into the next as
+  // one overnight shift — purely a labeled request, shown clearly to the
+  // admin reviewing it. It only actually takes effect (see
+  // AttendanceDay.joinedWithNextDay) once an admin approves this specific,
+  // visibly-flagged request; it never combines anything on its own.
+  joinedWithNextDay Boolean @default(false)
   status      DtrEntryRequestStatus @default(PENDING)
   submittedAt DateTime              @default(now())
 

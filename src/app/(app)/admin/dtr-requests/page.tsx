@@ -1,7 +1,8 @@
-import { Inbox } from "lucide-react";
+import { Inbox, Link2 } from "lucide-react";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { formatISODate } from "@/lib/period";
 import { formatTimeHHMM, previewRequestCode, resolveSchedule, type ManualOverrideCode } from "@/lib/dtr-time";
 import { ApproveRejectButtons, EmployeeRequestGroup } from "./request-actions";
@@ -72,7 +73,21 @@ export default async function DtrRequestsPage() {
                   <TableBody>
                     {group.requests.map((request) => (
                       <TableRow key={request.id}>
-                        <TableCell className="text-sm">{formatISODate(request.date)}</TableCell>
+                        <TableCell className="text-sm">
+                          <div className="flex items-center gap-1.5">
+                            {formatISODate(request.date)}
+                            {request.joinedWithNextDay && (
+                              <Badge
+                                variant="secondary"
+                                className="gap-1 whitespace-nowrap"
+                                title="The employee says this shift continues into the next calendar day — approving this will combine them into one overnight shift, credited here."
+                              >
+                                <Link2 className="size-3" />
+                                Joins next day
+                              </Badge>
+                            )}
+                          </div>
+                        </TableCell>
                         <TableCell className="text-sm whitespace-nowrap">
                           {request.overrideCode
                             ? "—"
@@ -121,6 +136,7 @@ export default async function DtrRequestsPage() {
               pmDeparture: r.pmDeparture,
               overrideCode: r.overrideCode as ManualOverrideCode | null,
               remarks: r.remarks,
+              joinedWithNextDay: r.joinedWithNextDay,
               status: r.status as "APPROVED" | "REJECTED",
               employeeId: r.employeeId,
               employee: { name: r.employee.name },

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { CopyPlus, Sparkles } from "lucide-react";
+import { CopyPlus, Link2, Sparkles } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Select,
@@ -18,7 +18,7 @@ import { Badge } from "@/components/ui/badge";
 import { DayScheduleButton } from "@/components/day-schedule-button";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { formatDisplayDate, parseISODate } from "@/lib/period";
-import { humanizeEnum } from "@/lib/utils";
+import { cn, humanizeEnum } from "@/lib/utils";
 import {
   computeAttendanceFromTimes,
   combineDateAndTime,
@@ -49,6 +49,11 @@ export type MyDtrRow = {
   // A one-off schedule for just this date — see EmployeeDateSchedule. Null
   // means "use your usual schedule."
   dateOverride: DateScheduleOverrideFields | null;
+  // Your own proposal that this day's shift continues into the next as one
+  // overnight shift crossing midnight. This is only ever a labeled request
+  // for HR to see while reviewing — it never combines anything by itself;
+  // an admin still has to approve it before it counts toward your DTR.
+  joinedWithNextDay: boolean;
 };
 
 function rowPreview(row: MyDtrRow, schedule: ResolvedSchedule) {
@@ -70,7 +75,10 @@ function rowPreview(row: MyDtrRow, schedule: ResolvedSchedule) {
   return ATTENDANCE_CODE_MAP[computed.code].shortLabel;
 }
 
-type DraftFields = Pick<MyDtrRow, "amArrival" | "amDeparture" | "pmArrival" | "pmDeparture" | "overrideCode" | "remarks">;
+type DraftFields = Pick<
+  MyDtrRow,
+  "amArrival" | "amDeparture" | "pmArrival" | "pmDeparture" | "overrideCode" | "remarks" | "joinedWithNextDay"
+>;
 
 function draftStorageKey(employeeId: string, rows: MyDtrRow[]): string | null {
   const first = rows[0]?.date;
@@ -103,6 +111,7 @@ export function MyDtrForm({
         pmDeparture: row.pmDeparture,
         overrideCode: row.overrideCode,
         remarks: row.remarks,
+        joinedWithNextDay: row.joinedWithNextDay,
       };
     }
     try {
@@ -188,6 +197,14 @@ export function MyDtrForm({
     });
   }
 
+  // Proposes that this day continues into the next as one overnight shift —
+  // shown clearly to HR when they review it, but it's only a labeled
+  // request: it never combines anything by itself, and only takes effect if
+  // an admin approves it (see AttendanceDay.joinedWithNextDay).
+  function toggleJoinedWithNextDay(index: number) {
+    updateRow(index, { joinedWithNextDay: !rows[index].joinedWithNextDay });
+  }
+
   function handleSubmit() {
     // A day already awaiting HR review, or already approved and on file, is
     // locked — it can't be resubmitted. Rejected (or never-submitted) days
@@ -215,6 +232,7 @@ export function MyDtrForm({
           pmDeparture: row.pmDeparture,
           overrideCode: row.overrideCode,
           remarks: row.remarks,
+          joinedWithNextDay: row.joinedWithNextDay,
         })),
       );
       if (!result.error) {
@@ -267,6 +285,8 @@ export function MyDtrForm({
               const isLocked = row.pendingStatus === "PENDING" || row.pendingStatus === "APPROVED";
               const timesDisabled = !!row.overrideCode || isLocked;
               const scheduleTitle = formatScheduleSummary(schedule);
+              const continuedFromAbove = i > 0 && rows[i - 1].joinedWithNextDay;
+              const nextRow = rows[i + 1];
               return (
                 <TableRow key={row.date}>
                   <TableCell className="whitespace-nowrap text-sm" title={scheduleTitle}>
@@ -288,7 +308,29 @@ export function MyDtrForm({
                           <CopyPlus className="size-3.5" />
                         </button>
                       )}
+                      {!isLocked && (
+                        <button
+                          type="button"
+                          title={
+                            row.joinedWithNextDay
+                              ? `Proposing this continues into ${nextRow ? formatDisplayDate(nextRow.date) : "the next day"} as one overnight shift — click to remove`
+                              : "This shift continues into the next day — flag it for HR"
+                          }
+                          onClick={() => toggleJoinedWithNextDay(i)}
+                          className={cn(
+                            "flex size-4 items-center justify-center rounded-sm",
+                            row.joinedWithNextDay
+                              ? "text-primary"
+                              : "text-muted-foreground/50 hover:bg-accent hover:text-muted-foreground",
+                          )}
+                        >
+                          <Link2 className="size-3.5" />
+                        </button>
+                      )}
                     </div>
+                    {continuedFromAbove && (
+                      <div className="text-[0.7rem] text-muted-foreground">↳ continues from above</div>
+                    )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{row.officialLabel}</TableCell>
                   <TableCell title={hasFirstSession ? undefined : "No AM session in this day's schedule"}>

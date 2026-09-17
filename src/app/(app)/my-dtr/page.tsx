@@ -137,6 +137,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
               : null,
       remarks: (useRequestData ? request?.remarks : day?.remarks) ?? "",
       dateOverride: dateOverrides.get(iso) ?? null,
+      joinedWithNextDay: source?.joinedWithNextDay ?? false,
     };
   });
 

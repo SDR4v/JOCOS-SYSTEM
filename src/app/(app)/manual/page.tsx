@@ -109,6 +109,13 @@ export default async function EmployeeManualPage() {
             once), use the small calendar icon next to that date instead — it only affects that one date, not
             your regular schedule.
           </p>
+          <p className="text-muted-foreground">
+            If you worked a shift that starts one date and doesn't end until the next (e.g. 8pm–5am), click the
+            link icon next to the <strong>start</strong> date to flag it as continuing into the next day — enter
+            your arrival on the start date's row and your departure on the next date's row, leaving the rest
+            blank. This is only a note for HR to see; the two days aren't actually combined until an admin
+            approves it.
+          </p>
         </CardContent>
       </Card>
 

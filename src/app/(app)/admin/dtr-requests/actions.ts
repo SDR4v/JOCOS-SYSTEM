@@ -100,10 +100,12 @@ export async function approveDtrEntryRequests(ids: string[]): Promise<FormState>
         pmArrival: overrideCode ? null : req.pmArrival,
         pmDeparture: overrideCode ? null : req.pmDeparture,
         overrideCode,
-        // A raw, not-yet-approved employee submission was never explicitly
-        // joined by an admin — that's only possible once it's official, from
-        // the DTR grid — so this can never itself trigger a combined grade.
-        joinedWithNextDay: false,
+        // The employee's own labeled proposal — only ever reached here for a
+        // request that's actually part of THIS approval batch (requestByKey
+        // is built solely from `requests`, the PENDING rows being approved
+        // right now), so trusting it only takes effect at the moment an
+        // admin deliberately approves this specific, visibly-flagged request.
+        joinedWithNextDay: req.joinedWithNextDay,
       };
     }
     const existing = existingByKey.get(key);
@@ -206,6 +208,11 @@ export async function approveDtrEntryRequests(ids: string[]): Promise<FormState>
       pmArrival: hasPmBlock ? request.pmArrival : null,
       pmDeparture: hasPmBlock ? request.pmDeparture : null,
       remarks: request.remarks,
+      // Carries the employee's proposal onto the official record once
+      // approved, so it's remembered for future re-saves (and shows the
+      // "continued from above" indicator on the DTR grid) — approving this
+      // specific, visibly-flagged request IS the admin's deliberate decision.
+      joinedWithNextDay: request.joinedWithNextDay,
       source: "EMPLOYEE_REQUEST" as const,
       editedById: admin.id,
       editedAt: now,

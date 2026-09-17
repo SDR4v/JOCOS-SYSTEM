@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState, type ReactNode } from "react";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight, Link2, Search } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -21,6 +21,7 @@ type ResolvedRequest = {
   pmDeparture: Date | null;
   overrideCode: ManualOverrideCode | null;
   remarks: string | null;
+  joinedWithNextDay: boolean;
   status: ResolvedStatus;
   employeeId: string;
   employee: { name: string };
@@ -183,7 +184,17 @@ function HalfGroups({ requests }: { requests: ResolvedRequest[] }) {
               <TableBody>
                 {group.requests.map((request) => (
                   <TableRow key={request.id}>
-                    <TableCell className="text-sm">{formatISODate(request.date)}</TableCell>
+                    <TableCell className="text-sm">
+                      <div className="flex items-center gap-1.5">
+                        {formatISODate(request.date)}
+                        {request.joinedWithNextDay && (
+                          <Badge variant="secondary" className="gap-1 whitespace-nowrap" title="The employee proposed this shift continues into the next calendar day.">
+                            <Link2 className="size-3" />
+                            Joins next day
+                          </Badge>
+                        )}
+                      </div>
+                    </TableCell>
                     <TableCell className="text-sm whitespace-nowrap">
                       {request.overrideCode
                         ? "—"
