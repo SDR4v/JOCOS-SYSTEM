@@ -281,6 +281,13 @@ export function MyDtrForm({
               const scheduleTitle = formatScheduleSummary(schedule);
               const continuedFromAbove = i > 0 ? rows[i - 1].joinedWithNextDay : continuedFromPreviousPeriod;
               const nextRow = rows[i + 1];
+              // The last row's "next day" isn't in this table at all (it's
+              // on the other half-month's page) — there's nothing to draw a
+              // live connecting line to until this is actually submitted and
+              // that page re-fetches it, so say so explicitly instead of
+              // just going quiet.
+              const nextDateLabel =
+                nextRow?.date ?? new Date(parseISODate(row.date).getTime() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
               // A colored bar down the left edge of both linked rows' Date
               // cells — sitting flush against each other, it reads as one
               // continuous connecting line rather than two separate badges.
@@ -304,7 +311,7 @@ export function MyDtrForm({
                           type="button"
                           title={
                             row.joinedWithNextDay
-                              ? `Proposing this continues into ${nextRow ? formatDisplayDate(nextRow.date) : "the next day"} as one overnight shift — click to remove`
+                              ? `Proposing this continues into ${formatDisplayDate(nextDateLabel)} as one overnight shift — click to remove`
                               : "This shift continues into the next day — flag it for HR"
                           }
                           onClick={() => toggleJoinedWithNextDay(i)}
@@ -320,7 +327,9 @@ export function MyDtrForm({
                       )}
                     </div>
                     {row.joinedWithNextDay && (
-                      <div className="text-[0.7rem] text-primary">↳ continues below</div>
+                      <div className="text-[0.7rem] text-primary">
+                        {nextRow ? "↳ continues below" : `↳ will connect to ${formatDisplayDate(nextDateLabel)} — submit to confirm`}
+                      </div>
                     )}
                     {continuedFromAbove && (
                       <div className="text-[0.7rem] text-muted-foreground">↳ continued from above</div>
