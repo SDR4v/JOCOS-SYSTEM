@@ -6,6 +6,13 @@ import { MonthNav } from "./month-nav";
 import { AddStandardHolidaysButton } from "./holiday-actions-client";
 import type { DayHoliday } from "./day-dialog";
 
+// Adding a holiday (or "add standard holidays", which does this once per
+// holiday in a year) writes one AttendanceDay per active employee — see
+// syncHolidayAttendance's own transaction timeout in actions.ts. Set at the
+// page level so it covers every Server Action used here (see maxDuration
+// docs: it must be set here, not in actions.ts, to affect Server Actions).
+export const maxDuration = 60;
+
 export default async function HolidaysPage({ searchParams }: PageProps<"/admin/holidays">) {
   await requireAdmin();
 

@@ -54,21 +54,21 @@ async function syncHolidayAttendance(date: Date, adminId: string, type: "REGULAR
     editedById: adminId,
     editedAt: new Date(),
   };
+  const targetIds = employees.filter((e) => !skip.has(e.id)).map((e) => e.id);
 
+  // One upsert round-trip per employee over the pooled remote connection
+  // used to blow even a 30s transaction timeout once the roster grew past a
+  // couple hundred people (P2028, rolling back silently — Holiday row
+  // created, but no AttendanceDay actually written). Every field being set
+  // here is a fixed override, not derived from whatever the row held before,
+  // so a blind delete+recreate is equivalent to the upsert and cuts this to
+  // 2 round trips total regardless of roster size — same trick as
+  // biometrics' processBiometricUpload.
   await prisma.$transaction(
-    employees
-      .filter((e) => !skip.has(e.id))
-      .map((e) =>
-        prisma.attendanceDay.upsert({
-          where: { employeeId_date: { employeeId: e.id, date } },
-          update: data,
-          create: { employeeId: e.id, date, ...data },
-        }),
-      ),
-    // Prisma's default interactive-transaction timeout (5s) isn't enough to
-    // upsert one row per active employee over the pooled remote connection
-    // once the roster is a couple hundred people — it was rolling back
-    // silently (Holiday row created, but no AttendanceDay actually written).
+    [
+      prisma.attendanceDay.deleteMany({ where: { employeeId: { in: targetIds }, date } }),
+      prisma.attendanceDay.createMany({ data: targetIds.map((employeeId) => ({ employeeId, date, ...data })) }),
+    ],
     { timeout: 30_000 },
   );
 }
