@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { CopyPlus, Link2, Sparkles } from "lucide-react";
+import { Link2, Sparkles } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import {
   Select,
@@ -186,17 +186,6 @@ export function MyDtrForm({
     toast.success("Filled standard hours for every editable day");
   }
 
-  function copyPreviousRow(index: number) {
-    if (index === 0) return;
-    const prevRow = rows[index - 1];
-    updateRow(index, {
-      amArrival: prevRow.amArrival,
-      amDeparture: prevRow.amDeparture,
-      pmArrival: prevRow.pmArrival,
-      pmDeparture: prevRow.pmDeparture,
-    });
-  }
-
   // Proposes that this day continues into the next as one overnight shift —
   // shown clearly to HR when they review it, but it's only a labeled
   // request: it never combines anything by itself, and only takes effect if
@@ -287,9 +276,16 @@ export function MyDtrForm({
               const scheduleTitle = formatScheduleSummary(schedule);
               const continuedFromAbove = i > 0 && rows[i - 1].joinedWithNextDay;
               const nextRow = rows[i + 1];
+              // A colored bar down the left edge of both linked rows' Date
+              // cells — sitting flush against each other, it reads as one
+              // continuous connecting line rather than two separate badges.
+              const joinLine = row.joinedWithNextDay || continuedFromAbove;
               return (
                 <TableRow key={row.date}>
-                  <TableCell className="whitespace-nowrap text-sm" title={scheduleTitle}>
+                  <TableCell
+                    className={cn("whitespace-nowrap text-sm", joinLine && "border-l-4 border-l-primary")}
+                    title={scheduleTitle}
+                  >
                     <div className="flex items-center gap-1">
                       <DayScheduleButton
                         date={row.date}
@@ -298,16 +294,6 @@ export function MyDtrForm({
                         onSaved={(value) => updateRow(i, { dateOverride: value })}
                       />
                       {formatDisplayDate(row.date)}
-                      {i > 0 && !timesDisabled && (
-                        <button
-                          type="button"
-                          title="Copy times from the row above"
-                          onClick={() => copyPreviousRow(i)}
-                          className="text-muted-foreground hover:text-foreground"
-                        >
-                          <CopyPlus className="size-3.5" />
-                        </button>
-                      )}
                       {!isLocked && (
                         <button
                           type="button"
@@ -328,8 +314,11 @@ export function MyDtrForm({
                         </button>
                       )}
                     </div>
+                    {row.joinedWithNextDay && (
+                      <div className="text-[0.7rem] text-primary">↳ continues below</div>
+                    )}
                     {continuedFromAbove && (
-                      <div className="text-[0.7rem] text-muted-foreground">↳ continues from above</div>
+                      <div className="text-[0.7rem] text-muted-foreground">↳ continued from above</div>
                     )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{row.officialLabel}</TableCell>

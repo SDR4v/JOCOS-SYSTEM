@@ -85,7 +85,6 @@ export default async function EmployeeManualPage() {
               <strong>Fill standard hours</strong> — fills every still-editable, non-overridden row with your
               scheduled hours in one click.
             </li>
-            <li>The small copy icon next to a date copies the row above it into that row — handy for repeated identical shifts.</li>
             <li>
               If HR has uploaded and reviewed a biometric (fingerprint scanner) export, an empty day may already
               show suggested times pulled from it — this is only a suggestion you can edit or override, and it's
@@ -113,8 +112,8 @@ export default async function EmployeeManualPage() {
             If you worked a shift that starts one date and doesn't end until the next (e.g. 8pm–5am), click the
             link icon next to the <strong>start</strong> date to flag it as continuing into the next day — enter
             your arrival on the start date's row and your departure on the next date's row, leaving the rest
-            blank. This is only a note for HR to see; the two days aren't actually combined until an admin
-            approves it.
+            blank — a colored bar connects the two rows so it's obvious at a glance. This is only a note for HR
+            to see; the two days aren't actually combined until an admin approves it.
           </p>
         </CardContent>
       </Card>

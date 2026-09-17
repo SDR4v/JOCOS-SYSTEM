@@ -317,9 +317,16 @@ export function DtrForm({
               const scheduleTitle = formatScheduleSummary(schedule);
               const continuedFromAbove = i > 0 && rows[i - 1].joinedWithNextDay;
               const nextRow = rows[i + 1];
+              // A colored bar down the left edge of both linked rows' Date
+              // cells — sitting flush against each other, it reads as one
+              // continuous connecting line rather than two separate badges.
+              const joinLine = row.joinedWithNextDay || continuedFromAbove;
               return (
                 <TableRow key={row.date}>
-                  <TableCell className="whitespace-nowrap text-sm" title={scheduleTitle}>
+                  <TableCell
+                    className={cn("whitespace-nowrap text-sm", joinLine && "border-l-4 border-l-primary")}
+                    title={scheduleTitle}
+                  >
                     <div className="flex items-center gap-1">
                       <DayScheduleButton
                         date={row.date}
@@ -348,6 +355,9 @@ export function DtrForm({
                         </button>
                       )}
                     </div>
+                    {row.joinedWithNextDay && (
+                      <div className="text-[0.7rem] text-primary">↳ continues below</div>
+                    )}
                     {continuedFromAbove && (
                       <div className="text-[0.7rem] text-muted-foreground">↳ continued from above</div>
                     )}

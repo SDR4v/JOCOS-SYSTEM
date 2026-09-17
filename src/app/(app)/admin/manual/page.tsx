@@ -190,9 +190,10 @@ export default async function AdminManualPage() {
             date's row and the departure on the next date's row, leave the rest blank, and the whole shift's
             credit posts to the start date. This has to be a deliberate click on your part: just configuring an
             overnight-shaped schedule is never enough on its own to combine two days, precisely so it can't be
-            used to dodge undertime/tardiness detection without you actually deciding it's legitimate. An
-            employee can propose the same join from their own My DTR when submitting — see DTR Requests below —
-            but it stays just a labeled request until you approve it.
+            used to dodge undertime/tardiness detection without you actually deciding it's legitimate. Once
+            joined, a colored bar connects the two dates' rows so the link is obvious at a glance, not just a
+            small note. An employee can propose the same join from their own My DTR when submitting — see DTR
+            Requests below — but it stays just a labeled request until you approve it.
           </p>
         </CardContent>
       </Card>
