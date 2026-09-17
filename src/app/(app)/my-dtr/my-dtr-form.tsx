@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TimeInputWithClear } from "@/components/time-input-with-clear";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
@@ -41,6 +42,8 @@ export type MyDtrRow = {
   pmDeparture: string;
   overrideCode: ManualOverrideCode | "";
   pendingStatus: "PENDING" | "REJECTED" | "APPROVED" | null;
+  // A free-text note explaining the day — never shown on the printed DTR.
+  remarks: string;
 };
 
 function rowPreview(row: MyDtrRow, schedule: ResolvedSchedule) {
@@ -62,7 +65,7 @@ function rowPreview(row: MyDtrRow, schedule: ResolvedSchedule) {
   return ATTENDANCE_CODE_MAP[computed.code].shortLabel;
 }
 
-type DraftFields = Pick<MyDtrRow, "amArrival" | "amDeparture" | "pmArrival" | "pmDeparture" | "overrideCode">;
+type DraftFields = Pick<MyDtrRow, "amArrival" | "amDeparture" | "pmArrival" | "pmDeparture" | "overrideCode" | "remarks">;
 
 function draftStorageKey(employeeId: string, rows: MyDtrRow[]): string | null {
   const first = rows[0]?.date;
@@ -94,6 +97,7 @@ export function MyDtrForm({
         pmArrival: row.pmArrival,
         pmDeparture: row.pmDeparture,
         overrideCode: row.overrideCode,
+        remarks: row.remarks,
       };
     }
     try {
@@ -205,6 +209,7 @@ export function MyDtrForm({
           pmArrival: row.pmArrival,
           pmDeparture: row.pmDeparture,
           overrideCode: row.overrideCode,
+          remarks: row.remarks,
         })),
       );
       if (!result.error) {
@@ -244,6 +249,7 @@ export function MyDtrForm({
               <TableHead>Override</TableHead>
               <TableHead>Proposed</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead>Remarks</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -330,6 +336,15 @@ export function MyDtrForm({
                     {row.pendingStatus === "PENDING" && <Badge variant="outline">Pending review</Badge>}
                     {row.pendingStatus === "REJECTED" && <Badge variant="destructive">Rejected</Badge>}
                     {row.pendingStatus === "APPROVED" && <Badge>Approved</Badge>}
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      className="min-w-48"
+                      placeholder="Optional note..."
+                      disabled={isLocked}
+                      value={row.remarks}
+                      onChange={(e) => updateRow(i, { remarks: e.target.value })}
+                    />
                   </TableCell>
                 </TableRow>
               );

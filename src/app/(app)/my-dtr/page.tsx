@@ -133,6 +133,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
             : day
               ? "APPROVED"
               : null,
+      remarks: (useRequestData ? request?.remarks : day?.remarks) ?? "",
     };
   });
 

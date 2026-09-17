@@ -173,6 +173,7 @@ export async function approveDtrEntryRequests(ids: string[]): Promise<FormState>
       amDeparture: hasAmBlock ? request.amDeparture : null,
       pmArrival: hasPmBlock ? request.pmArrival : null,
       pmDeparture: hasPmBlock ? request.pmDeparture : null,
+      remarks: request.remarks,
       source: "EMPLOYEE_REQUEST" as const,
       editedById: admin.id,
       editedAt: now,

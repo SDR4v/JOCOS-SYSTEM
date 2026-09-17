@@ -37,6 +37,7 @@ const dtrRowSchema = z.object({
   amDepartureIsTA: z.boolean().optional(),
   pmArrivalIsTA: z.boolean().optional(),
   pmDepartureIsTA: z.boolean().optional(),
+  remarks: z.string().max(1000).optional(),
 });
 
 const saveDtrSchema = z.object({
@@ -63,6 +64,9 @@ type DayFact = {
   amDepartureIsTA: boolean;
   pmArrivalIsTA: boolean;
   pmDepartureIsTA: boolean;
+  // Only ever set from the actual save batch below — a boundary day fetched
+  // just for night-shift pairing never needs or touches its own remarks.
+  remarks: string | null;
 };
 
 function factFromExisting(date: Date, existing: { amArrival: Date | null; amDeparture: Date | null; pmArrival: Date | null; pmDeparture: Date | null; code: AttendanceCode } | null): DayFact {
@@ -79,6 +83,7 @@ function factFromExisting(date: Date, existing: { amArrival: Date | null; amDepa
     amDepartureIsTA: false,
     pmArrivalIsTA: false,
     pmDepartureIsTA: false,
+    remarks: null,
   };
 }
 
@@ -184,6 +189,7 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
       amDepartureIsTA,
       pmArrivalIsTA,
       pmDepartureIsTA,
+      remarks: row.remarks?.trim() || null,
     };
   });
 
@@ -221,6 +227,7 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
       amDeparture: row.amDepartureIsTA ? null : row.amDeparture,
       pmArrival: row.pmArrivalIsTA ? null : row.pmArrival,
       pmDeparture: row.pmDepartureIsTA ? null : row.pmDeparture,
+      remarks: row.remarks,
       // Preserve provenance — deleteHoliday() matches on source: "HOLIDAY"
       // to know which rows to clean up when a holiday is removed, and
       // re-saving the period shouldn't erase that; TRIP_AUTHORIZATION is

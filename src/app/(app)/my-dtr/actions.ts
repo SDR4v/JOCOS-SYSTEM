@@ -18,6 +18,7 @@ const rowSchema = z.object({
   pmArrival: timeField,
   pmDeparture: timeField,
   overrideCode: z.union([z.enum(MANUAL_OVERRIDE_CODES), z.literal("")]).optional(),
+  remarks: z.string().max(1000).optional(),
 });
 
 export type FormState = { error: string | null };
@@ -53,6 +54,7 @@ export async function submitDtrEntries(rows: unknown): Promise<FormState> {
         pmArrival: hasPmBlock && row.pmArrival ? combineDateAndTime(row.date, row.pmArrival) : null,
         pmDeparture: hasPmBlock && row.pmDeparture ? combineDateAndTime(row.date, row.pmDeparture) : null,
         overrideCode: row.overrideCode || null,
+        remarks: row.remarks?.trim() || null,
         status: "PENDING" as const,
         submittedAt: new Date(),
         reviewedById: null,

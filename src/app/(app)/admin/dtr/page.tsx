@@ -115,6 +115,7 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
       amDepartureIsTA: wasTA && !existing.amDeparture,
       pmArrivalIsTA: wasTA && !existing.pmArrival,
       pmDepartureIsTA: wasTA && !existing.pmDeparture,
+      remarks: existing?.remarks ?? "",
     };
   });
 

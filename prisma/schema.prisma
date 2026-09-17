@@ -191,6 +191,10 @@ model AttendanceDay {
   amDeparture DateTime?
   pmArrival   DateTime?
   pmDeparture DateTime?
+  // Free-text explanation for the day — never printed on the DTR (CS Form
+  // No. 48 has no room for it), purely an on-screen note for whoever reviews
+  // this record later.
+  remarks String?
 
   editedById String?
   editedBy   User?    @relation("AttendanceDayEditor", fields: [editedById], references: [id])
@@ -219,6 +223,7 @@ model DtrEntryRequest {
   pmArrival   DateTime?
   pmDeparture DateTime?
   overrideCode AttendanceCode?      // set only for REST_DAY / WORK_SUSPENDED / UNSET proposals
+  remarks     String?               // the employee's own note explaining this day — carried over to AttendanceDay.remarks on approval
   status      DtrEntryRequestStatus @default(PENDING)
   submittedAt DateTime              @default(now())
 

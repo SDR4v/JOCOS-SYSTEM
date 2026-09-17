@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TimeInputWithClear } from "@/components/time-input-with-clear";
+import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { formatDisplayDate, parseISODate } from "@/lib/period";
@@ -45,6 +46,8 @@ export type DtrRowValue = {
   amDepartureIsTA: boolean;
   pmArrivalIsTA: boolean;
   pmDepartureIsTA: boolean;
+  // A free-text note for the day — never shown on the printed DTR.
+  remarks: string;
 };
 
 // A punch marked TA isn't a real time — resolve it to its own scheduled
@@ -118,6 +121,7 @@ type DraftFields = Pick<
   | "amDepartureIsTA"
   | "pmArrivalIsTA"
   | "pmDepartureIsTA"
+  | "remarks"
 >;
 
 function draftStorageKey(employeeId: string, rows: DtrRowValue[]): string | null {
@@ -154,6 +158,7 @@ export function DtrForm({
         amDepartureIsTA: row.amDepartureIsTA,
         pmArrivalIsTA: row.pmArrivalIsTA,
         pmDepartureIsTA: row.pmDepartureIsTA,
+        remarks: row.remarks,
       };
     }
     try {
@@ -288,6 +293,7 @@ export function DtrForm({
               <TableHead>Override</TableHead>
               <TableHead>Code</TableHead>
               <TableHead>Late/Undertime</TableHead>
+              <TableHead>Remarks</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -392,6 +398,14 @@ export function DtrForm({
                   </TableCell>
                   <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
                     {preview.undertimeMinutes > 0 ? formatDurationHM(preview.undertimeMinutes) : "—"}
+                  </TableCell>
+                  <TableCell>
+                    <Input
+                      className="min-w-48"
+                      placeholder="Optional note..."
+                      value={row.remarks}
+                      onChange={(e) => updateRow(i, { remarks: e.target.value })}
+                    />
                   </TableCell>
                 </TableRow>
               );
