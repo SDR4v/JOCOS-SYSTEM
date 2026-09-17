@@ -141,3 +141,13 @@ export function ActivityIcon(props: SVGProps<SVGSVGElement>) {
     </Icon>
   );
 }
+
+export function ManualIcon(props: SVGProps<SVGSVGElement>) {
+  return (
+    <Icon {...props}>
+      <path d="M12 6.2c-1.6-1.3-3.7-1.9-6-1.9v13.5c2.3 0 4.4.6 6 1.9" />
+      <path d="M12 6.2c1.6-1.3 3.7-1.9 6-1.9v13.5c-2.3 0-4.4.6-6 1.9" />
+      <path d="M12 6.2v13.5" />
+    </Icon>
+  );
+}

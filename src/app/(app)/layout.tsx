@@ -14,6 +14,7 @@ import {
   HistoryIcon,
   ActivityIcon,
   MonitoringIcon,
+  ManualIcon,
 } from "@/components/nav-icons";
 import { requireUser } from "@/lib/session";
 import { signOut } from "@/auth";
@@ -62,6 +63,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         { href: "/admin/payroll", icon: <PayrollIcon className="size-4" />, label: "Daily Rate Computation" },
         { href: "/admin/history", icon: <HistoryIcon className="size-4" />, label: "History" },
         { href: "/admin/activity", icon: <ActivityIcon className="size-4" />, label: "Activity" },
+        { href: "/admin/manual", icon: <ManualIcon className="size-4" />, label: "Manual" },
       ]
     : [
         { href: "/my-dtr", icon: <DtrIcon className="size-4" />, label: "My DTR" },
@@ -69,6 +71,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
         { href: "/my-wellness-leave", icon: <WellnessLeaveIcon className="size-4" />, label: "Wellness Leave" },
         { href: "/biometrics", icon: <BiometricsIcon className="size-4" />, label: "Biometrics" },
         { href: "/history", icon: <HistoryIcon className="size-4" />, label: "History" },
+        { href: "/manual", icon: <ManualIcon className="size-4" />, label: "Manual" },
       ];
 
   // Admin gets the navy "authority" colorway (matching the print reports and
