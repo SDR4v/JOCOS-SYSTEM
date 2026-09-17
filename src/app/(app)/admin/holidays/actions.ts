@@ -75,7 +75,7 @@ async function syncHolidayAttendance(date: Date, adminId: string, type: "REGULAR
 const createSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   name: z.string().trim().min(1, "Name is required").max(120),
-  type: z.enum(["REGULAR", "SPECIAL_NON_WORKING", "SUSPENDED"]),
+  type: z.enum(["REGULAR", "SUSPENDED"]),
 });
 
 export async function createHoliday(input: unknown): Promise<FormState> {

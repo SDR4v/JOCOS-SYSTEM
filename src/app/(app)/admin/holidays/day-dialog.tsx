@@ -19,9 +19,14 @@ import { createHoliday, deleteHoliday } from "./actions";
 
 type HolidayType = "REGULAR" | "SPECIAL_NON_WORKING" | "SUSPENDED";
 
+// Regular vs Special (Non-working) has no effect here — either way the DTR
+// gets marked Holiday (no work, no pay), see syncHolidayAttendance — so both
+// show and pick as plain "Holiday". SPECIAL_NON_WORKING is kept in the type
+// (not offered in the picker below) only so any pre-existing calendar
+// entries still saved with that value keep rendering correctly.
 const TYPE_LABELS: Record<HolidayType, string> = {
-  REGULAR: "Regular Holiday",
-  SPECIAL_NON_WORKING: "Special (Non-working) Day",
+  REGULAR: "Holiday",
+  SPECIAL_NON_WORKING: "Holiday",
   SUSPENDED: "Suspended Work (paid)",
 };
 
@@ -84,7 +89,7 @@ function ExistingHoliday({
       </DialogHeader>
       <div className="space-y-2">
         <p className="text-lg font-medium">{holiday.name}</p>
-        <Badge variant={holiday.type === "REGULAR" ? "default" : "secondary"}>{TYPE_LABELS[holiday.type]}</Badge>
+        <Badge variant={holiday.type === "SUSPENDED" ? "secondary" : "default"}>{TYPE_LABELS[holiday.type]}</Badge>
         <p className="text-xs text-muted-foreground">
           {holiday.type === "SUSPENDED"
             ? "Every active employee's DTR for this day is marked Work Suspended (full pay, no work expected). Removing it reverts those days back to unset."
@@ -142,7 +147,6 @@ function NewHoliday({ date, displayLabel, onClose }: { date: string; displayLabe
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="REGULAR">{TYPE_LABELS.REGULAR}</SelectItem>
-              <SelectItem value="SPECIAL_NON_WORKING">{TYPE_LABELS.SPECIAL_NON_WORKING}</SelectItem>
               <SelectItem value="SUSPENDED">{TYPE_LABELS.SUSPENDED}</SelectItem>
             </SelectContent>
           </Select>

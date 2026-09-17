@@ -52,8 +52,7 @@ export function CalendarGrid({
                     "flex h-24 flex-col items-start gap-1 border-r border-b p-1.5 text-left transition disabled:cursor-default",
                     !cell.inMonth && "bg-muted/20 text-muted-foreground/40",
                     cell.inMonth && !cell.holiday && "hover:bg-accent",
-                    cell.holiday?.type === "REGULAR" && "bg-primary/10 hover:bg-primary/15",
-                    cell.holiday?.type === "SPECIAL_NON_WORKING" && "bg-brand-gold/10 hover:bg-brand-gold/15",
+                    cell.holiday && cell.holiday.type !== "SUSPENDED" && "bg-primary/10 hover:bg-primary/15",
                     cell.holiday?.type === "SUSPENDED" && "bg-brand-green/10 hover:bg-brand-green/15",
                   )}
                 >
