@@ -281,6 +281,16 @@ function earlyDepartureMinutesSameDay(departureMin: number, schedStart: number, 
   return Math.max(0, schedEnd - Math.min(effectiveDeparture, schedEnd));
 }
 
+// The arrival-side mirror of earlyDepartureMinutesSameDay, same restriction
+// (same-calendar-day sessions only). An arrival AFTER the session's own end
+// (e.g. clocking in at 12:08 against a session that ends at 12:00) would
+// otherwise wrap almost a full day under relativeMinutes and read as "must
+// have arrived early" — instead of the entire session being missed, same
+// failure mode as the departure case.
+function lateArrivalMinutesSameDay(arrivalMin: number, schedStart: number, schedEnd: number): number {
+  return Math.max(0, Math.min(arrivalMin, schedEnd) - schedStart);
+}
+
 // Undertime for one session with the AM/lone-session grace rule applied to
 // its arrival (see GRACE_PERIOD_MINUTES); early departure is always
 // counted in full regardless.
@@ -317,10 +327,9 @@ export function computeAttendanceFromTimes(times: DtrTimes, schedule: ResolvedSc
     const amEnd = schedule.session1!.end;
     const pmStart = schedule.session2!.start;
     const pmEnd = schedule.session2!.end;
-    const amDuration = sessionDuration(amStart, amEnd);
 
     // AM arrival: grace-forgiven, same rule as everywhere else.
-    const rawAmLate = lateArrivalMinutes(minutesOfDay(times.amArrival!), amStart, amDuration);
+    const rawAmLate = lateArrivalMinutesSameDay(minutesOfDay(times.amArrival!), amStart, amEnd);
     const amLateArrival = rawAmLate <= GRACE_PERIOD_MINUTES ? 0 : rawAmLate;
     const amEarlyDeparture = earlyDepartureMinutesSameDay(minutesOfDay(times.amDeparture!), amStart, amEnd);
 
@@ -331,9 +340,8 @@ export function computeAttendanceFromTimes(times: DtrTimes, schedule: ResolvedSc
     // leaving at 12:05 is exactly on time, 1:06 is a minute late.
     const amDepartureDelay = Math.max(0, relativeMinutes(minutesOfDay(times.amDeparture!), amEnd));
     const pmDeadline = pmStart + Math.min(amDepartureDelay, GRACE_PERIOD_MINUTES);
-    const pmDeadlineDuration = sessionDuration(pmDeadline, pmEnd);
 
-    const pmLateArrival = lateArrivalMinutes(minutesOfDay(times.pmArrival!), pmDeadline, pmDeadlineDuration);
+    const pmLateArrival = lateArrivalMinutesSameDay(minutesOfDay(times.pmArrival!), pmDeadline, pmEnd);
     const pmEarlyDeparture = earlyDepartureMinutesSameDay(minutesOfDay(times.pmDeparture!), pmStart, pmEnd);
 
     const lateMinutes = amLateArrival + amEarlyDeparture + pmLateArrival + pmEarlyDeparture;
