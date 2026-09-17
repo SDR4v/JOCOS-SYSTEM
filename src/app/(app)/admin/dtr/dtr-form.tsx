@@ -12,7 +12,6 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { TimeInputWithClear } from "@/components/time-input-with-clear";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DayScheduleButton } from "@/components/day-schedule-button";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
@@ -300,7 +299,6 @@ export function DtrForm({
               <TableHead>Override</TableHead>
               <TableHead>Code</TableHead>
               <TableHead>Late/Undertime</TableHead>
-              <TableHead>Remarks</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -411,14 +409,6 @@ export function DtrForm({
                   </TableCell>
                   <TableCell className="text-sm whitespace-nowrap text-muted-foreground">
                     {preview.undertimeMinutes > 0 ? formatDurationHM(preview.undertimeMinutes) : "—"}
-                  </TableCell>
-                  <TableCell>
-                    <Input
-                      className="min-w-48"
-                      placeholder="Optional note..."
-                      value={row.remarks}
-                      onChange={(e) => updateRow(i, { remarks: e.target.value })}
-                    />
                   </TableCell>
                 </TableRow>
               );
