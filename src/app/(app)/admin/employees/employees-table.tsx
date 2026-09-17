@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { humanizeEnum } from "@/lib/utils";
 import { EditEmployeeDialog, CreateLoginDialog, ResetPasswordDialog } from "./employee-dialogs";
-import { ScheduleDialog } from "./schedule-dialog";
 import { toggleEmployeeStatus, removeEmployee } from "./actions";
 
 type EmployeeRow = {
@@ -20,18 +19,6 @@ type EmployeeRow = {
   positionTitle: string;
   salaryGrade: number;
   status: "ACTIVE" | "INACTIVE";
-  scheduleMode: "STANDARD" | "CUSTOM" | "PER_DAY";
-  session1Start: number | null;
-  session1End: number | null;
-  session2Start: number | null;
-  session2End: number | null;
-  daySchedules: {
-    dayOfWeek: number;
-    session1Start: number | null;
-    session1End: number | null;
-    session2Start: number | null;
-    session2End: number | null;
-  }[];
   user: { id: string; username: string } | null;
 };
 
@@ -123,7 +110,6 @@ export function EmployeesTable({ employees }: { employees: EmployeeRow[] }) {
                   )}
                 </TableCell>
                 <TableCell className="flex justify-end gap-2">
-                  <ScheduleDialog employee={employee} />
                   <EditEmployeeDialog employee={employee} />
                   <Button
                     type="button"

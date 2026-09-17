@@ -5,7 +5,6 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
-import { buildStoredSession, DAY_NAMES } from "@/lib/dtr-time";
 import { logAudit } from "@/lib/audit";
 
 const employeeSchema = z.object({
@@ -202,99 +201,5 @@ export async function resetEmployeePassword(_prev: FormState, formData: FormData
   });
 
   revalidatePath("/admin/employees");
-  return { error: null };
-}
-
-const daySchema = z.object({
-  dayOfWeek: z.number().int().min(0).max(6),
-  dayMode: z.enum(["STANDARD", "CUSTOM"]),
-  hasSession1: z.boolean(),
-  session1Start: z.string().optional(),
-  session1End: z.string().optional(),
-  hasSession2: z.boolean(),
-  session2Start: z.string().optional(),
-  session2End: z.string().optional(),
-});
-
-const scheduleSchema = z
-  .object({
-    employeeId: z.string().min(1),
-    scheduleMode: z.enum(["STANDARD", "CUSTOM", "PER_DAY"]),
-    hasSession1: z.boolean(),
-    session1Start: z.string().optional(),
-    session1End: z.string().optional(),
-    hasSession2: z.boolean(),
-    session2Start: z.string().optional(),
-    session2End: z.string().optional(),
-    days: z.array(daySchema).length(7),
-  })
-  .refine((v) => v.scheduleMode !== "CUSTOM" || (v.session1Start && v.session1End), {
-    message: "Session 1 start and end are required for a custom schedule",
-  })
-  .refine((v) => v.scheduleMode !== "CUSTOM" || !v.hasSession2 || (v.session2Start && v.session2End), {
-    message: "Session 2 start and end are required when a second session is set",
-  });
-
-export async function updateEmployeeSchedule(input: unknown): Promise<FormState> {
-  const admin = await requireAdmin();
-
-  const parsed = scheduleSchema.safeParse(input);
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const { employeeId, scheduleMode, hasSession1, session1Start, session1End, hasSession2, session2Start, session2End, days } =
-    parsed.data;
-  const isCustom = scheduleMode === "CUSTOM";
-  const customSession = buildStoredSession({ hasSession1, session1Start, session1End, hasSession2, session2Start, session2End });
-
-  if (scheduleMode === "PER_DAY") {
-    for (const day of days) {
-      if (day.dayMode !== "CUSTOM") continue;
-      if (!day.session1Start || !day.session1End) {
-        return { error: `${DAY_NAMES[day.dayOfWeek]}: time in and out are required` };
-      }
-      if (day.hasSession2 && (!day.session2Start || !day.session2End)) {
-        return { error: `${DAY_NAMES[day.dayOfWeek]}: second time in and out are required` };
-      }
-    }
-  }
-
-  const employeeName = (await prisma.employee.findUnique({ where: { id: employeeId }, select: { name: true } }))?.name ?? "employee";
-
-  await prisma.$transaction([
-    prisma.employee.update({
-      where: { id: employeeId },
-      data: {
-        scheduleMode,
-        session1Start: isCustom ? customSession.session1Start : null,
-        session1End: isCustom ? customSession.session1End : null,
-        session2Start: isCustom ? customSession.session2Start : null,
-        session2End: isCustom ? customSession.session2End : null,
-      },
-    }),
-    prisma.employeeDaySchedule.deleteMany({ where: { employeeId } }),
-    ...(scheduleMode === "PER_DAY"
-      ? days
-          .filter((d) => d.dayMode !== "STANDARD")
-          .map((d) => {
-            const stored = buildStoredSession(d);
-            return prisma.employeeDaySchedule.create({
-              data: { employeeId, dayOfWeek: d.dayOfWeek, ...stored },
-            });
-          })
-      : []),
-  ]);
-
-  await logAudit({
-    actorId: admin.id,
-    entityType: "Employee",
-    entityId: employeeId,
-    action: "UPDATE",
-    summary: `Updated work schedule for ${employeeName}`,
-  });
-
-  revalidatePath("/admin/employees");
-  revalidatePath("/admin/dtr");
   return { error: null };
 }

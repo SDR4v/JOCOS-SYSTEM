@@ -99,13 +99,10 @@ export default async function AdminManualPage() {
             </li>
           </ul>
           <p>
-            <strong>Schedule</strong> opens each employee's work-hours dialog — Standard office hours (8–12,
-            1–5, Mon–Fri), Custom (one set of AM/PM hours every day, either half independently toggleable), or
-            Per-Day (a different schedule for each day of the week, useful for a shortened Saturday or marking a
-            rest day). This drives what counts as late/undertime on their DTR, and which days Monitoring expects
-            them to have an entry for. A single continuous session (e.g. a straight night shift) is always
-            entered under the "AM" fields regardless of what time it actually falls at — the DTR grid follows the
-            same convention.
+            An employee's recurring work-hours pattern (Standard office hours, Custom, or Per-Day — the same
+            three modes described on the employee side) is set by the employee themselves, from their own My DTR
+            page. What you can do here instead is set a <strong>one-off schedule for a single date</strong> — see
+            the DTR section below.
           </p>
         </CardContent>
       </Card>
@@ -180,6 +177,12 @@ export default async function AdminManualPage() {
           <p className="text-muted-foreground">
             The Code and hours columns are a live preview of what each day will grade to — see the legend below
             for what each one means and how it affects pay.
+          </p>
+          <p>
+            The small calendar icon next to a date sets a <strong>one-off schedule for just that date</strong> —
+            for the rare day that doesn't follow the employee's usual pattern (e.g. covering someone else's shift
+            just once), without changing anything about any other day. Leave every field blank to revert to their
+            usual schedule.
           </p>
         </CardContent>
       </Card>

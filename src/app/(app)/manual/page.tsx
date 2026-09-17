@@ -104,6 +104,11 @@ export default async function EmployeeManualPage() {
             every day, or hours that vary by day of the week. Changing it takes effect immediately, no approval
             needed.
           </p>
+          <p className="text-muted-foreground">
+            For a single day that doesn't follow your usual pattern (e.g. covering someone else's shift just
+            once), use the small calendar icon next to that date instead — it only affects that one date, not
+            your regular schedule.
+          </p>
         </CardContent>
       </Card>
 

@@ -11,7 +11,7 @@ export default async function EmployeesPage() {
   const [employees, removedEmployees] = await Promise.all([
     prisma.employee.findMany({
       where: { deletedAt: null },
-      include: { user: true, daySchedules: true },
+      include: { user: true },
       orderBy: [{ officeAssignment: "asc" }, { name: "asc" }],
     }),
     prisma.employee.findMany({
