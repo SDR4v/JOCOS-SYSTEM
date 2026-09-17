@@ -45,7 +45,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
   // bound to the start of the following day instead.
   const punchRangeEnd = new Date(end.getTime() + 24 * 60 * 60 * 1000);
 
-  const [days, requests, punches, rate, dateOverrides] = await Promise.all([
+  const [days, requests, punches, rate, dateOverrides, dayBeforePeriod] = await Promise.all([
     prisma.attendanceDay.findMany({ where: { employeeId: employee.id, date: { gte: start, lte: end } } }),
     prisma.dtrEntryRequest.findMany({ where: { employeeId: employee.id, date: { gte: start, lte: end } } }),
     prisma.punchRecord.findMany({
@@ -61,6 +61,14 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
       where: { year_salaryGrade: { year, salaryGrade: employee.salaryGrade } },
     }),
     fetchDateScheduleOverrides(employee.id, start, end),
+    // The day just before this half-month period — a join set on it doesn't
+    // appear anywhere in THIS table's own rows, so without this the
+    // "continued from above" connector would never show across the
+    // 15th/16th boundary even though the actual grading already handles it.
+    prisma.attendanceDay.findUnique({
+      where: { employeeId_date: { employeeId: employee.id, date: new Date(start.getTime() - 24 * 60 * 60 * 1000) } },
+      select: { joinedWithNextDay: true },
+    }),
   ]);
 
   const dayMap = new Map(days.map((day) => [formatISODate(day.date), day]));
@@ -172,7 +180,13 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
         </CardContent>
       </Card>
 
-      <MyDtrForm key={`${year}-${month}-${half}`} employeeId={employee.id} initialRows={rows} employeeSchedule={employee} />
+      <MyDtrForm
+        key={`${year}-${month}-${half}`}
+        employeeId={employee.id}
+        initialRows={rows}
+        employeeSchedule={employee}
+        continuedFromPreviousPeriod={dayBeforePeriod?.joinedWithNextDay ?? false}
+      />
     </div>
   );
 }

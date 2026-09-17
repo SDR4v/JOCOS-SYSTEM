@@ -145,10 +145,16 @@ export function DtrForm({
   employeeId,
   initialRows,
   employeeSchedule,
+  continuedFromPreviousPeriod,
 }: {
   employeeId: string;
   initialRows: DtrRowValue[];
   employeeSchedule: EmployeeScheduleFields;
+  // Whether the day just before this table's first row was joined to it —
+  // the join itself already grades correctly across a half-month boundary,
+  // this is only so the connecting line/label shows up here too instead of
+  // looking like the join silently did nothing.
+  continuedFromPreviousPeriod: boolean;
 }) {
   const [rows, setRows] = useState(initialRows);
   const [pending, startTransition] = useTransition();
@@ -315,7 +321,7 @@ export function DtrForm({
               const hasSecondSession = !!schedule.session2;
               const timesDisabled = !!row.overrideCode;
               const scheduleTitle = formatScheduleSummary(schedule);
-              const continuedFromAbove = i > 0 && rows[i - 1].joinedWithNextDay;
+              const continuedFromAbove = i > 0 ? rows[i - 1].joinedWithNextDay : continuedFromPreviousPeriod;
               const nextRow = rows[i + 1];
               // A colored bar down the left edge of both linked rows' Date
               // cells — sitting flush against each other, it reads as one

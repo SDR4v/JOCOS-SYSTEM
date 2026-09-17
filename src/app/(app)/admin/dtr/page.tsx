@@ -61,7 +61,7 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
   // start of the following day instead.
   const punchRangeEnd = new Date(end.getTime() + 24 * 60 * 60 * 1000);
 
-  const [selectedEmployee, existingDays, punches, dateOverrides] = await Promise.all([
+  const [selectedEmployee, existingDays, punches, dateOverrides, dayBeforePeriod] = await Promise.all([
     prisma.employee.findUniqueOrThrow({ where: { id: employeeId }, include: { daySchedules: true } }),
     prisma.attendanceDay.findMany({ where: { employeeId, date: { gte: start, lte: end } } }),
     prisma.punchRecord.findMany({
@@ -74,6 +74,14 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
       select: { timestamp: true },
     }),
     fetchDateScheduleOverrides(employeeId, start, end),
+    // The day just before this half-month period — a join set on it doesn't
+    // show up anywhere in THIS table's own rows, so without this the "joins
+    // into"/"continued from" connector would only ever render within a
+    // single half-month view and never across the 15th/16th boundary.
+    prisma.attendanceDay.findUnique({
+      where: { employeeId_date: { employeeId, date: new Date(start.getTime() - 24 * 60 * 60 * 1000) } },
+      select: { joinedWithNextDay: true },
+    }),
   ]);
   const dayMap = new Map(existingDays.map((day) => [formatISODate(day.date), day]));
   // Same pre-fill as My DTR (see my-dtr/page.tsx) — only ever offered for a
@@ -145,6 +153,7 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
         employeeId={employeeId}
         initialRows={rows}
         employeeSchedule={selectedEmployee}
+        continuedFromPreviousPeriod={dayBeforePeriod?.joinedWithNextDay ?? false}
       />
     </div>
   );
