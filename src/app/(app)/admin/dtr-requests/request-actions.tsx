@@ -26,7 +26,7 @@ export function ApproveRejectButtons({ id }: { id: string }) {
   function reject() {
     startTransition(async () => {
       const result = await rejectDtrEntryRequest(id);
-      if (!result.error) toast.success("DTR entry rejected");
+      if (!result.error) toast.success("DTR entry returned");
       else toast.error(result.error);
     });
   }
@@ -39,7 +39,7 @@ export function ApproveRejectButtons({ id }: { id: string }) {
       </Button>
       <Button type="button" variant="outline" size="sm" loading={pending} onClick={reject}>
         <X />
-        Reject
+        Return
       </Button>
     </div>
   );
@@ -59,7 +59,7 @@ export function BulkApproveRejectButtons({ ids }: { ids: string[] }) {
   function rejectAll() {
     startTransition(async () => {
       const result = await rejectDtrEntryRequests(ids);
-      if (!result.error) toast.success(`Rejected ${ids.length} day(s)`);
+      if (!result.error) toast.success(`Returned ${ids.length} day(s)`);
       else toast.error(result.error);
     });
   }
@@ -72,7 +72,7 @@ export function BulkApproveRejectButtons({ ids }: { ids: string[] }) {
       </Button>
       <Button type="button" variant="outline" size="sm" loading={pending} onClick={rejectAll}>
         <X />
-        Reject all ({ids.length})
+        Return all ({ids.length})
       </Button>
     </div>
   );

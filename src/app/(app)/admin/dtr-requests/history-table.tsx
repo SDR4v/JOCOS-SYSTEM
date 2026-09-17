@@ -8,7 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatISODate, halfLabel, MONTH_NAMES, type Half } from "@/lib/period";
 import { formatTimeHHMM, previewRequestCode, type ManualOverrideCode, type ResolvedSchedule } from "@/lib/dtr-time";
-import { humanizeEnum } from "@/lib/utils";
 import { RevertApprovalButton } from "./request-actions";
 
 type ResolvedStatus = "APPROVED" | "REJECTED";
@@ -94,7 +93,7 @@ export function HistoryTable({ requests }: { requests: ResolvedRequest[] }) {
             size="sm"
             onClick={() => setStatus("REJECTED")}
           >
-            Rejected ({rejectedCount})
+            Returned ({rejectedCount})
           </Button>
         </div>
       </div>
@@ -200,7 +199,9 @@ function HalfGroups({ requests }: { requests: ResolvedRequest[] }) {
                       {request.remarks || "—"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={request.status === "APPROVED" ? "default" : "destructive"}>{humanizeEnum(request.status)}</Badge>
+                      <Badge variant={request.status === "APPROVED" ? "default" : "destructive"}>
+                        {request.status === "APPROVED" ? "Approved" : "Returned"}
+                      </Badge>
                     </TableCell>
                     <TableCell className="text-right">
                       {request.status === "APPROVED" && <RevertApprovalButton id={request.id} />}

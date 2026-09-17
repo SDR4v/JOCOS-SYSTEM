@@ -205,13 +205,13 @@ export default async function AdminManualPage() {
         <CardContent className="space-y-2 text-sm">
           <p>
             The queue for entries employees submitted themselves through their own My DTR page. Requests are
-            grouped per employee — <strong>Approve all</strong> / <strong>Reject all</strong> on a group header,
-            or approve/reject individual days after expanding it. Approving is what actually writes the times
-            into the official record; rejecting just sends it back (the employee can edit and resubmit).
+            grouped per employee — <strong>Approve all</strong> / <strong>Return all</strong> on a group header,
+            or approve/return individual days after expanding it. Approving is what actually writes the times
+            into the official record; returning just sends it back (the employee can edit and resubmit).
           </p>
           <p>
             Made a mistake? Find it under the <strong>History</strong> tab and click <strong>Revert</strong> on
-            an approved entry — it undoes the write and flips the request to Rejected so the employee can fix and
+            an approved entry — it undoes the write and flips the request to Returned so the employee can fix and
             resubmit it themselves, as long as nobody has since hand-edited that day directly on the DTR grid.
           </p>
         </CardContent>

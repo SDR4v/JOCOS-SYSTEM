@@ -310,7 +310,7 @@ export async function rejectDtrEntryRequest(id: string): Promise<FormState> {
 
 export async function rejectDtrEntryRequests(ids: string[]): Promise<FormState> {
   const admin = await requireAdmin();
-  if (ids.length === 0) return { error: "No requests to reject" };
+  if (ids.length === 0) return { error: "No requests to return" };
 
   const requests = await prisma.dtrEntryRequest.findMany({
     where: { id: { in: ids }, status: "PENDING" },
@@ -331,13 +331,13 @@ export async function rejectDtrEntryRequests(ids: string[]): Promise<FormState> 
     action: "UPDATE",
     summary:
       requests.length === 1
-        ? `Rejected ${names[0]}'s DTR entry for ${formatFullDate(requests[0].date)}`
-        : `Rejected ${requests.length} DTR request(s) (${names.join(", ")})`,
+        ? `Returned ${names[0]}'s DTR entry for ${formatFullDate(requests[0].date)}`
+        : `Returned ${requests.length} DTR request(s) (${names.join(", ")})`,
   });
   await Promise.all(
     requests.map((request) =>
       request.employee.user
-        ? notifyUser(request.employee.user.id, `Your DTR entry for ${formatFullDate(request.date)} was rejected`, "/my-dtr")
+        ? notifyUser(request.employee.user.id, `Your DTR entry for ${formatFullDate(request.date)} was returned`, "/my-dtr")
         : Promise.resolve(),
     ),
   );

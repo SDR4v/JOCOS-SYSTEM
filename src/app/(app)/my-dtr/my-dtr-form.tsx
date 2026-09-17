@@ -347,7 +347,7 @@ export function MyDtrForm({
                   <TableCell className="text-sm font-medium">{rowPreview(row, schedules[i])}</TableCell>
                   <TableCell>
                     {row.pendingStatus === "PENDING" && <Badge variant="outline">Pending review</Badge>}
-                    {row.pendingStatus === "REJECTED" && <Badge variant="destructive">Rejected</Badge>}
+                    {row.pendingStatus === "REJECTED" && <Badge variant="destructive">Returned</Badge>}
                     {row.pendingStatus === "APPROVED" && <Badge>Approved</Badge>}
                   </TableCell>
                   <TableCell>

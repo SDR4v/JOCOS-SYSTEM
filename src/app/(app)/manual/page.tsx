@@ -94,7 +94,7 @@ export default async function EmployeeManualPage() {
           </ul>
           <p>
             Once a day is <strong>Pending review</strong> or <strong>Approved</strong>, it locks — you can't edit
-            or resubmit it (only an admin can reopen it). If a day comes back <strong>Rejected</strong>, it stays
+            or resubmit it (only an admin can reopen it). If a day comes back <strong>Returned</strong>, it stays
             editable so you can fix it and resubmit. Weekends default to Rest Day if you leave them untouched, and
             future dates are never submitted even if you happened to type something into them.
           </p>
@@ -182,7 +182,7 @@ export default async function EmployeeManualPage() {
           <p>
             Lists every past month you have an <strong>official, approved</strong> DTR for, with a{" "}
             <strong>1st half</strong> / <strong>2nd half</strong> print button for each. This only shows approved
-            records — anything you submitted that's still Pending or was Rejected won't appear here until an
+            records — anything you submitted that's still Pending or was Returned won't appear here until an
             admin approves it.
           </p>
           <p>
