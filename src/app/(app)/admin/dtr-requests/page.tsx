@@ -64,6 +64,7 @@ export default async function DtrRequestsPage() {
                       <TableHead>AM</TableHead>
                       <TableHead>PM</TableHead>
                       <TableHead>Code</TableHead>
+                      <TableHead>Remarks</TableHead>
                       <TableHead>Submitted</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
@@ -87,6 +88,9 @@ export default async function DtrRequestsPage() {
                             { ...request, overrideCode: request.overrideCode as ManualOverrideCode | null },
                             resolveSchedule(request.employee, request.date.getUTCDay()),
                           )}
+                        </TableCell>
+                        <TableCell className="max-w-48 truncate text-sm text-muted-foreground" title={request.remarks ?? undefined}>
+                          {request.remarks || "—"}
                         </TableCell>
                         <TableCell className="text-sm text-muted-foreground">
                           {formatISODate(request.submittedAt)}
@@ -116,6 +120,7 @@ export default async function DtrRequestsPage() {
               pmArrival: r.pmArrival,
               pmDeparture: r.pmDeparture,
               overrideCode: r.overrideCode as ManualOverrideCode | null,
+              remarks: r.remarks,
               status: r.status as "APPROVED" | "REJECTED",
               employeeId: r.employeeId,
               employee: { name: r.employee.name },

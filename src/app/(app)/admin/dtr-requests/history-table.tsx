@@ -21,6 +21,7 @@ type ResolvedRequest = {
   pmArrival: Date | null;
   pmDeparture: Date | null;
   overrideCode: ManualOverrideCode | null;
+  remarks: string | null;
   status: ResolvedStatus;
   employeeId: string;
   employee: { name: string };
@@ -175,6 +176,7 @@ function HalfGroups({ requests }: { requests: ResolvedRequest[] }) {
                   <TableHead>AM</TableHead>
                   <TableHead>PM</TableHead>
                   <TableHead>Code</TableHead>
+                  <TableHead>Remarks</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
@@ -194,6 +196,9 @@ function HalfGroups({ requests }: { requests: ResolvedRequest[] }) {
                         : `${request.pmArrival ? formatTimeHHMM(request.pmArrival) : "—"}–${request.pmDeparture ? formatTimeHHMM(request.pmDeparture) : "—"}`}
                     </TableCell>
                     <TableCell className="text-sm font-medium">{previewRequestCode(request, request.schedule)}</TableCell>
+                    <TableCell className="max-w-48 truncate text-sm text-muted-foreground" title={request.remarks ?? undefined}>
+                      {request.remarks || "—"}
+                    </TableCell>
                     <TableCell>
                       <Badge variant={request.status === "APPROVED" ? "default" : "destructive"}>{humanizeEnum(request.status)}</Badge>
                     </TableCell>
