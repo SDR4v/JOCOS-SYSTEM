@@ -17,7 +17,7 @@ export function NavLink({
   badge?: number;
 }) {
   const pathname = usePathname();
-  const isActive = pathname === href || pathname.startsWith(`${href}/`);
+  const isActive = isNavActive(pathname, href);
 
   return (
     <Link
@@ -55,16 +55,25 @@ function NavLinkBody({
     <>
       {pending ? <Loader2 className="size-4 animate-spin" /> : icon}
       {children}
-      {!!badge && badge > 0 && (
-        <span
-          className={cn(
-            "flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[0.65rem] font-semibold",
-            isActive ? "bg-primary-foreground text-primary" : "bg-destructive text-white",
-          )}
-        >
-          {badge}
-        </span>
-      )}
+      <NavBadge count={badge} isActive={isActive} />
     </>
+  );
+}
+
+export function isNavActive(pathname: string, href: string): boolean {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function NavBadge({ count, isActive }: { count?: number; isActive: boolean }) {
+  if (!count || count <= 0) return null;
+  return (
+    <span
+      className={cn(
+        "flex h-4.5 min-w-4.5 items-center justify-center rounded-full px-1 text-[0.65rem] font-semibold",
+        isActive ? "bg-primary-foreground text-primary" : "bg-destructive text-white",
+      )}
+    >
+      {count}
+    </span>
   );
 }

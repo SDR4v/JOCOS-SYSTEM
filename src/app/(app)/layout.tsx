@@ -23,9 +23,12 @@ import { prisma } from "@/lib/prisma";
 import { getHalfMonthRange, type Half } from "@/lib/period";
 import { countEmployeesWithIncompleteDtr } from "@/lib/dtr-monitoring";
 import { NavLink } from "@/components/nav-link";
+import { NavGroup, type NavItem } from "@/components/nav-group";
 import { LiquidNav } from "@/components/liquid-nav";
 import { MobileNav } from "@/components/mobile-nav";
 import { NotificationBell } from "@/components/notification-bell";
+
+type NavEntry = NavItem | { label: string; icon: React.ReactNode; items: NavItem[] };
 
 export default async function AppLayout({ children }: LayoutProps<"/">) {
   const user = await requireUser();
@@ -49,20 +52,47 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
   const initial = (user.name ?? user.username).charAt(0).toUpperCase();
 
   // Built once and rendered in both the desktop bar and the mobile drawer so
-  // the two never drift out of sync.
-  const navItems = isAdmin
+  // the two never drift out of sync. Admin pages are grouped: twelve flat
+  // links wrapped into two unordered rows on desktop. A group is a dropdown
+  // on desktop and a headed section in the drawer, where there's room to
+  // show every link at once.
+  const navEntries: NavEntry[] = isAdmin
     ? [
-        { href: "/admin/employees", icon: <EmployeesIcon className="size-4" />, label: "Employees" },
-        { href: "/admin/salary-grades", icon: <SalaryGradesIcon className="size-4" />, label: "Salary Grades" },
-        { href: "/admin/holidays", icon: <CalendarIcon className="size-4" />, label: "Calendar" },
-        { href: "/admin/biometrics", icon: <BiometricsIcon className="size-4" />, label: "Biometrics" },
-        { href: "/admin/dtr", icon: <DtrIcon className="size-4" />, label: "DTR" },
-        { href: "/admin/dtr-requests", icon: <DtrRequestsIcon className="size-4" />, label: "DTR Requests", badge: pendingDtrRequests },
-        { href: "/admin/monitoring", icon: <MonitoringIcon className="size-4" />, label: "Monitoring", badge: incompleteDtrCount },
-        { href: "/admin/wellness-leave", icon: <WellnessLeaveIcon className="size-4" />, label: "Wellness Leave" },
-        { href: "/admin/payroll", icon: <PayrollIcon className="size-4" />, label: "Daily Rate Computation" },
-        { href: "/admin/history", icon: <HistoryIcon className="size-4" />, label: "History" },
-        { href: "/admin/activity", icon: <ActivityIcon className="size-4" />, label: "Activity" },
+        {
+          label: "Attendance",
+          icon: <DtrIcon className="size-4" />,
+          items: [
+            { href: "/admin/dtr", icon: <DtrIcon className="size-4" />, label: "DTR" },
+            { href: "/admin/dtr-requests", icon: <DtrRequestsIcon className="size-4" />, label: "DTR Requests", badge: pendingDtrRequests },
+            { href: "/admin/monitoring", icon: <MonitoringIcon className="size-4" />, label: "Monitoring", badge: incompleteDtrCount },
+            { href: "/admin/biometrics", icon: <BiometricsIcon className="size-4" />, label: "Biometrics" },
+            { href: "/admin/holidays", icon: <CalendarIcon className="size-4" />, label: "Calendar" },
+          ],
+        },
+        {
+          label: "People",
+          icon: <EmployeesIcon className="size-4" />,
+          items: [
+            { href: "/admin/employees", icon: <EmployeesIcon className="size-4" />, label: "Employees" },
+            { href: "/admin/wellness-leave", icon: <WellnessLeaveIcon className="size-4" />, label: "Wellness Leave" },
+          ],
+        },
+        {
+          label: "Payroll",
+          icon: <PayrollIcon className="size-4" />,
+          items: [
+            { href: "/admin/payroll", icon: <PayrollIcon className="size-4" />, label: "Daily Rate Computation" },
+            { href: "/admin/salary-grades", icon: <SalaryGradesIcon className="size-4" />, label: "Salary Grades" },
+          ],
+        },
+        {
+          label: "Records",
+          icon: <HistoryIcon className="size-4" />,
+          items: [
+            { href: "/admin/history", icon: <HistoryIcon className="size-4" />, label: "History" },
+            { href: "/admin/activity", icon: <ActivityIcon className="size-4" />, label: "Activity" },
+          ],
+        },
         { href: "/admin/manual", icon: <ManualIcon className="size-4" />, label: "Manual" },
       ]
     : [
@@ -98,12 +128,16 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
               </div>
             </Link>
 
-            <LiquidNav className="hidden lg:flex">
-              {navItems.map((item) => (
-                <NavLink key={item.href} href={item.href} icon={item.icon} badge={item.badge}>
-                  {item.label}
-                </NavLink>
-              ))}
+            <LiquidNav className="hidden lg:flex lg:flex-nowrap">
+              {navEntries.map((entry) =>
+                "items" in entry ? (
+                  <NavGroup key={entry.label} label={entry.label} icon={entry.icon} items={entry.items} />
+                ) : (
+                  <NavLink key={entry.href} href={entry.href} icon={entry.icon} badge={entry.badge}>
+                    {entry.label}
+                  </NavLink>
+                ),
+              )}
             </LiquidNav>
           </div>
 
@@ -146,11 +180,32 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
             </Suspense>
             <MobileNav>
               <LiquidNav className="flex-col items-stretch gap-1">
-                {navItems.map((item) => (
-                  <NavLink key={item.href} href={item.href} icon={item.icon} badge={item.badge}>
-                    {item.label}
-                  </NavLink>
-                ))}
+                {navEntries.flatMap((entry, i) =>
+                  "items" in entry
+                    ? [
+                        <div
+                          key={`heading-${entry.label}`}
+                          className="px-2.5 pt-3 pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase first:pt-0"
+                        >
+                          {entry.label}
+                        </div>,
+                        ...entry.items.map((item) => (
+                          <NavLink key={item.href} href={item.href} icon={item.icon} badge={item.badge}>
+                            {item.label}
+                          </NavLink>
+                        )),
+                      ]
+                    : [
+                        // Separates a standalone link from the group above it,
+                        // which it would otherwise read as part of.
+                        i > 0 && "items" in navEntries[i - 1] && (
+                          <div key={`divider-${entry.href}`} className="my-2 border-t" />
+                        ),
+                        <NavLink key={entry.href} href={entry.href} icon={entry.icon} badge={entry.badge}>
+                          {entry.label}
+                        </NavLink>,
+                      ],
+                )}
               </LiquidNav>
               <div className="mt-4 flex items-center gap-2 border-t pt-4">
                 <Link
