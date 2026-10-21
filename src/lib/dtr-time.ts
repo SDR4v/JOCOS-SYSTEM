@@ -325,8 +325,11 @@ export function computeAttendanceFromTimes(times: DtrTimes, schedule: ResolvedSc
     // minute, capped at GRACE_PERIOD_MINUTES — e.g. leaving at 12:16 or
     // later never buys more than until 1:15 to be back. Below the cap
     // there's no separate forgiveness on top of it: back by 1:05 after
-    // leaving at 12:05 is exactly on time, 1:06 is a minute late.
-    const amDepartureDelay = Math.max(0, relativeMinutes(minutesOfDay(times.amDeparture!), amEnd));
+    // leaving at 12:05 is exactly on time, 1:06 is a minute late. Plain
+    // subtraction, not relativeMinutes: leaving EARLY (11:59) must clamp to
+    // 0, but the wrapping version reads it as 1439 minutes late and handed
+    // out the full 15-minute extension.
+    const amDepartureDelay = Math.max(0, minutesOfDay(times.amDeparture!) - amEnd);
     const pmDeadline = pmStart + Math.min(amDepartureDelay, GRACE_PERIOD_MINUTES);
 
     const pmLateArrival = lateArrivalMinutesSameDay(minutesOfDay(times.pmArrival!), pmDeadline, pmEnd);
