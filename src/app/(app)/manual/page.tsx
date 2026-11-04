@@ -94,14 +94,16 @@ export default async function EmployeeManualPage() {
           <p>
             Once a day is <strong>Pending review</strong> or <strong>Approved</strong>, it locks — you can't edit
             or resubmit it (only an admin can reopen it). If a day comes back <strong>Returned</strong>, it stays
-            editable so you can fix it and resubmit. Weekends default to Rest Day if you leave them untouched, and
-            future dates are never submitted even if you happened to type something into them.
+            editable so you can fix it and resubmit. Your days off default to Rest Day if you leave them untouched,
+            and future dates are never submitted even if you happened to type something into them.
           </p>
           <p className="text-muted-foreground">
-            Your regular work schedule (which determines what counts as "on time") defaults to Standard office
-            hours (8–12, 1–5, Monday–Friday) and isn't something you or HR can change through the app. For a
-            single day that doesn't follow that pattern (e.g. covering someone else's shift just once), use the
-            small calendar icon next to that date instead — it only affects that one date.
+            Your schedule (which determines what counts as "on time") comes from the monthly schedule your office
+            posts, so you don't enter it yourself. Each day's hours are shown under its date. If your office hasn't
+            posted one, Standard office hours apply (8–12, 1–5, Monday–Friday). If your hours are wrong, ask whoever
+            prepares your office's schedule to have it corrected. If HR has asked you to post it, you'll see{" "}
+            <strong>Office Schedule</strong> in your menu: upload your office's usual file there, answer anything
+            that's highlighted, and send it to HR to publish.
           </p>
           <p className="text-muted-foreground">
             If you worked a shift that starts one date and doesn't end until the next (e.g. 8pm–5am), click the

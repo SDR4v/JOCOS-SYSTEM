@@ -40,6 +40,8 @@ model User {
   auditLogEntries      AuditLog[]             @relation("AuditActor")
   notifications        Notification[]         @relation("NotificationRecipient")
   avatar               UserAvatar?
+  uploadedSchedules    ScheduleUpload[]       @relation("ScheduleUploader")
+  publishedSchedules   ScheduleUpload[]       @relation("SchedulePublisher")
 }
 
 // Kept in its own table (like BiometricUpload) rather than columns on User —
@@ -97,6 +99,11 @@ model Employee {
   deletedBy   User?     @relation("EmployeeDeleter", fields: [deletedById], references: [id])
   deletedAt   DateTime?
 
+  // Lets this employee's own login post the monthly schedule for their office
+  // (officeAssignment). What they post still waits for HR to publish it — they
+  // appear in the schedule themselves, so it can't take effect on their word.
+  canPostSchedule Boolean @default(false)
+
   user                  User?
   attendanceDays        AttendanceDay[]
   punchRecords          PunchRecord[]
@@ -129,11 +136,13 @@ model EmployeeDaySchedule {
   @@unique([employeeId, dayOfWeek])
 }
 
-// A one-off schedule for a single calendar date — takes priority over both
-// the recurring weekly pattern (EmployeeDaySchedule) and the employee's
-// default (Standard/Custom), for the rare day that doesn't follow the usual
-// pattern (e.g. covering someone else's shift just that once). Set inline
-// from the DTR grid, by whoever entered that day's times.
+// The schedule for a single calendar date — takes priority over both the
+// recurring weekly pattern (EmployeeDaySchedule) and the employee's default
+// (Standard/Custom). Written when HR publishes an office's monthly schedule
+// (see ScheduleUpload); nobody types these in by hand any more. A date with no
+// row here simply follows the employee's default. Rows with no
+// scheduleUploadId are older one-offs from when these were set from the DTR
+// grid, kept because already-graded days were computed against them.
 model EmployeeDateSchedule {
   id            String   @id @default(cuid())
   employeeId    String
@@ -143,9 +152,69 @@ model EmployeeDateSchedule {
   session1End   Int?
   session2Start Int?
   session2End   Int?
+  // A posted day off. All sessions stay null, so grading a day someone worked
+  // anyway still falls back to their default hours.
+  isOff         Boolean  @default(false)
+
+  scheduleUploadId String?
+  scheduleUpload   ScheduleUpload? @relation(fields: [scheduleUploadId], references: [id], onDelete: SetNull)
 
   @@unique([employeeId, date])
   @@index([date])
+  @@index([scheduleUploadId])
+}
+
+// One office's schedule file for one month, in whatever template that office
+// uses, and what it was read as. `document` (see lib/schedule-import/types.ts)
+// is the working draft: corrections made on the review screen change it, and
+// nothing reaches EmployeeDateSchedule until it's PUBLISHED. A later upload for
+// the same office and month replaces this one and marks it SUPERSEDED.
+enum ScheduleUploadStatus {
+  DRAFT
+  SUBMITTED
+  PUBLISHED
+  SUPERSEDED
+}
+
+model ScheduleUpload {
+  id         String               @id @default(cuid())
+  office     String
+  year       Int
+  month      Int
+  filename   String
+  mimeType   String
+  fileSize   Int
+  fileData   Bytes
+  document   Json
+  status     ScheduleUploadStatus @default(DRAFT)
+  // Why HR sent it back to the office, shown until the office acts on it.
+  returnNote String?
+
+  uploadedById String
+  uploadedBy   User     @relation("ScheduleUploader", fields: [uploadedById], references: [id])
+  uploadedAt   DateTime @default(now())
+
+  publishedById String?
+  publishedBy   User?     @relation("SchedulePublisher", fields: [publishedById], references: [id])
+  publishedAt   DateTime?
+
+  dateSchedules EmployeeDateSchedule[]
+
+  @@index([office, year, month])
+  @@index([status])
+}
+
+// What an office's own shorthand means ("A", "N", or a "10-6" that could be
+// read two ways), learned the first time someone confirms it on the review
+// screen, so that office is never asked about the same code twice.
+model ScheduleShiftCode {
+  id        String   @id @default(cuid())
+  office    String
+  code      String
+  shift     Json
+  updatedAt DateTime @updatedAt
+
+  @@unique([office, code])
 }
 
 // ── Salary Grade rate table (page 1 of the source sheet) ───────

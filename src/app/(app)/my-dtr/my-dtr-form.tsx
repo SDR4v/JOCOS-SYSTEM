@@ -15,7 +15,6 @@ import { TimeInputWithClear } from "@/components/time-input-with-clear";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { DayScheduleButton } from "@/components/day-schedule-button";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
 import { formatDisplayDate, parseISODate } from "@/lib/period";
 import { cn, humanizeEnum } from "@/lib/utils";
@@ -26,6 +25,7 @@ import {
   resolveSchedule,
   scheduledDurationMinutes,
   formatDurationHM,
+  formatPostedDay,
   formatScheduleSummary,
   MANUAL_OVERRIDE_CODES,
   type ManualOverrideCode,
@@ -33,7 +33,7 @@ import {
   type ResolvedSchedule,
   type DateScheduleOverrideFields,
 } from "@/lib/dtr-time";
-import { submitDtrEntries, setMyDateSchedule } from "./actions";
+import { submitDtrEntries } from "./actions";
 
 export type MyDtrRow = {
   date: string;
@@ -46,8 +46,8 @@ export type MyDtrRow = {
   pendingStatus: "PENDING" | "REJECTED" | "APPROVED" | null;
   // A free-text note explaining the day — never shown on the printed DTR.
   remarks: string;
-  // A one-off schedule for just this date — see EmployeeDateSchedule. Null
-  // means "use your usual schedule."
+  // This date in your office's published schedule — see EmployeeDateSchedule.
+  // Null means no schedule covers it, so your usual hours apply.
   dateOverride: DateScheduleOverrideFields | null;
   // Your own proposal that this day's shift continues into the next as one
   // overnight shift crossing midnight. This is only ever a labeled request
@@ -246,9 +246,11 @@ export function MyDtrForm({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/60 px-3 py-2">
         <p className="text-sm text-muted-foreground">
-          {employeeSchedule.scheduleMode === "PER_DAY"
-            ? "Your schedule varies by day of week — hover a row's date for that day's hours."
-            : `Your schedule: ${formatScheduleSummary(schedules[0])}`}
+          {rows.some((row) => row.dateOverride)
+            ? "Following your office's posted schedule — each day's hours are shown under its date."
+            : employeeSchedule.scheduleMode === "PER_DAY"
+              ? "Your schedule varies by day of week — hover a row's date for that day's hours."
+              : `Your office hasn't posted a schedule for this period. Usual hours: ${formatScheduleSummary(schedules[0])}`}
         </p>
         <Button type="button" variant="outline" size="sm" onClick={fillStandardHours}>
           <Sparkles />
@@ -299,12 +301,6 @@ export function MyDtrForm({
                     title={scheduleTitle}
                   >
                     <div className="flex items-center gap-1">
-                      <DayScheduleButton
-                        date={row.date}
-                        override={row.dateOverride}
-                        action={setMyDateSchedule}
-                        onSaved={(value) => updateRow(i, { dateOverride: value })}
-                      />
                       {formatDisplayDate(row.date)}
                       {!isLocked && (
                         <button
@@ -326,6 +322,9 @@ export function MyDtrForm({
                         </button>
                       )}
                     </div>
+                    {row.dateOverride && (
+                      <div className="text-[0.7rem] text-muted-foreground">{formatPostedDay(row.dateOverride)}</div>
+                    )}
                     {row.joinedWithNextDay && (
                       <div className="text-[0.7rem] text-primary">
                         {nextRow ? "↳ continues below" : `↳ will connect to ${formatDisplayDate(nextDateLabel)} — submit to confirm`}

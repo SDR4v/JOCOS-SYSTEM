@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { formatISODate } from "@/lib/period";
+import { fetchDateScheduleOverridesForEmployees } from "@/lib/date-schedule";
 import { formatTimeHHMM, previewRequestCode, resolveSchedule, type ManualOverrideCode } from "@/lib/dtr-time";
 import { ApproveRejectButtons, EmployeeRequestGroup } from "./request-actions";
 import { HistoryTable } from "./history-table";
@@ -15,6 +16,23 @@ export default async function DtrRequestsPage() {
     include: { employee: { include: { daySchedules: true } } },
     orderBy: { submittedAt: "desc" },
   });
+
+  // So the code previewed here is the one approving it will actually produce.
+  const requestTimes = requests.map((r) => r.date.getTime());
+  const overridesByEmployee =
+    requests.length > 0
+      ? await fetchDateScheduleOverridesForEmployees(
+          [...new Set(requests.map((r) => r.employeeId))],
+          new Date(Math.min(...requestTimes)),
+          new Date(Math.max(...requestTimes)),
+        )
+      : new Map<string, never>();
+  const scheduleFor = (request: (typeof requests)[number]) =>
+    resolveSchedule(
+      request.employee,
+      request.date.getUTCDay(),
+      overridesByEmployee.get(request.employeeId)?.get(formatISODate(request.date)),
+    );
 
   const pendingRequests = requests.filter((r) => r.status === "PENDING");
   const resolvedRequests = requests.filter((r) => r.status !== "PENDING");
@@ -101,7 +119,7 @@ export default async function DtrRequestsPage() {
                         <TableCell className="text-sm font-medium">
                           {previewRequestCode(
                             { ...request, overrideCode: request.overrideCode as ManualOverrideCode | null },
-                            resolveSchedule(request.employee, request.date.getUTCDay()),
+                            scheduleFor(request),
                           )}
                         </TableCell>
                         <TableCell className="max-w-48 truncate text-sm text-muted-foreground" title={request.remarks ?? undefined}>
@@ -140,7 +158,7 @@ export default async function DtrRequestsPage() {
               status: r.status as "APPROVED" | "REJECTED",
               employeeId: r.employeeId,
               employee: { name: r.employee.name },
-              schedule: resolveSchedule(r.employee, r.date.getUTCDay()),
+              schedule: scheduleFor(r),
             }))}
           />
         </div>

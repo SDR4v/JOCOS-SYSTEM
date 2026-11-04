@@ -252,7 +252,7 @@ export type DtrPunchTimes = {
 export type DayClassification =
   | { kind: "blank" }
   | ({ kind: "confident" } & DtrPunchTimes)
-  | { kind: "flagged"; reason: "too_few" | "too_many"; am: Date[]; pm: Date[] };
+  | { kind: "flagged"; reason: "too_few" | "too_many" | "overnight"; am: Date[]; pm: Date[] };
 
 // A day resolves confidently ONLY when its punch count exactly matches what
 // the employee's own schedule expects that day (2 for a single continuous
@@ -277,6 +277,16 @@ export function classifyDayPunches(punches: Date[], schedule: ResolvedSchedule):
 
   const lone = loneSession(schedule);
   const expected = lone ? 2 : 4;
+
+  // A shift crossing midnight breaks the rule above that position alone settles
+  // it: someone on 10PM-6AM punches 06:00 (last night's shift ending) then 22:00
+  // (tonight's starting), so "first = arrival" would be exactly backwards. Their
+  // punches belong to two different shifts, which a single day can't sort out.
+  if (lone && lone.end < lone.start) {
+    return lone.slot === "AM"
+      ? { kind: "flagged", reason: "overnight", am: punches, pm: [] }
+      : { kind: "flagged", reason: "overnight", am: [], pm: punches };
+  }
 
   if (punches.length === expected) {
     if (lone) {

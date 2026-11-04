@@ -2,7 +2,7 @@
 // into per-day classifications, for both the review screen and the
 // submit-for-approval action to share the same read on what's confident vs
 // flagged.
-import { resolveSchedule, type EmployeeScheduleFields } from "@/lib/dtr-time";
+import { resolveSchedule, type DateScheduleOverrideFields, type EmployeeScheduleFields } from "@/lib/dtr-time";
 import { classifyDayPunches, isConfidentDay, type DayClassification } from "@/lib/biometric-match";
 import { formatISODate, parseISODate } from "@/lib/period";
 
@@ -12,7 +12,12 @@ export type EmployeeDayReview = {
   confident: boolean;
 };
 
-export function reviewEmployeePunches(employee: EmployeeScheduleFields, punches: Date[]): EmployeeDayReview[] {
+export function reviewEmployeePunches(
+  employee: EmployeeScheduleFields,
+  punches: Date[],
+  // How many punches a day should have depends on that day's posted hours.
+  dateOverrides?: Map<string, DateScheduleOverrideFields>,
+): EmployeeDayReview[] {
   const byDate = new Map<string, Date[]>();
   for (const punch of punches) {
     const iso = formatISODate(punch);
@@ -24,7 +29,7 @@ export function reviewEmployeePunches(employee: EmployeeScheduleFields, punches:
   const results: EmployeeDayReview[] = [];
   for (const [iso, dayPunches] of byDate) {
     dayPunches.sort((a, b) => a.getTime() - b.getTime());
-    const schedule = resolveSchedule(employee, parseISODate(iso).getUTCDay());
+    const schedule = resolveSchedule(employee, parseISODate(iso).getUTCDay(), dateOverrides?.get(iso));
     const classification = classifyDayPunches(dayPunches, schedule);
     results.push({ iso, classification, confident: isConfidentDay(classification) });
   }

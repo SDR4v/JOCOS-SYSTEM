@@ -7,6 +7,7 @@ const SECTIONS = [
   { id: "overview", label: "Overview" },
   { id: "employees", label: "Employees" },
   { id: "salary-grades", label: "Salary Grades" },
+  { id: "schedules", label: "Monthly Schedules" },
   { id: "biometrics", label: "Biometrics" },
   { id: "calendar", label: "Calendar / Holidays" },
   { id: "dtr", label: "DTR" },
@@ -99,10 +100,9 @@ export default async function AdminManualPage() {
             </li>
           </ul>
           <p>
-            Every employee's recurring work-hours pattern defaults to Standard office hours (8–12, 1–5,
-            Monday–Friday) — there's no admin or employee control to change that regular pattern. For a single
-            date that doesn't follow it, set a <strong>one-off schedule for just that date</strong> instead — see
-            the DTR section below.
+            Every employee's hours default to Standard office hours (8–12, 1–5, Monday–Friday) until their
+            office's schedule is published — see Monthly Schedules below. <strong>Let post schedule</strong> lets
+            an employee with a login upload their own office's schedule for you to publish.
           </p>
         </CardContent>
       </Card>
@@ -124,6 +124,52 @@ export default async function AdminManualPage() {
             Rates don't roll over automatically — set them up for each new year. An employee whose SG has no rate
             for the year being viewed shows a <strong>"No rate for {"{year}"}"</strong> badge on Payroll and
             computes ₱0 rather than erroring, so that badge is your cue to come back here first.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card id="schedules" className="scroll-mt-20">
+        <CardHeader>
+          <CardTitle>Monthly Schedules</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3 text-sm">
+          <p>
+            Each office's schedule sets its employees' hours for the month, so nobody enters schedules by hand.
+            An office can use its own format: Excel, Word, CSV, or a PDF exported from one of those. It can be
+            names against dates, a weekly pattern, a list, or a duty roster with names under each shift. Scanned
+            copies and photos can't be read, so those offices can use <strong>Get a blank template</strong>.
+          </p>
+          <ol className="list-decimal space-y-1 pl-5">
+            <li>
+              <strong>Upload</strong> the file under{" "}
+              <Link href="/schedules" className="underline underline-offset-2">
+                Schedules
+              </Link>
+              , or have the office's designated employee upload it and send it to you.
+            </li>
+            <li>
+              <strong>Answer what's highlighted.</strong> Names that didn't match the roster with certainty, and
+              entries that couldn't be read (like an unexplained code, or a "10-6" that could be day or night), have
+              to be settled first. Your answers are remembered for that office.
+            </li>
+            <li>
+              <strong>Check the month's grid</strong> against the original file. Click any day to correct it.
+            </li>
+            <li>
+              <strong>Publish.</strong> Employees are notified, and their DTR, biometrics matching, and Monitoring
+              follow these hours from then on.
+            </li>
+          </ol>
+          <p>
+            To change a published schedule, use <strong>Reopen to correct</strong> and publish again, or upload a
+            new file for the same office and month. Either way the old one stays in effect until you publish.
+            That's also how to record a last-minute shift swap.
+          </p>
+          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+            Publishing never changes attendance that's already saved. If a saved day would grade differently under
+            the new schedule, it's listed on the schedule's page: open it from there and save it again. Blank cells
+            are read as a day off (you can change that in the review), and an employee who isn't in the file, or a
+            date the file doesn't cover, stays on their usual hours.
           </p>
         </CardContent>
       </Card>
@@ -179,10 +225,9 @@ export default async function AdminManualPage() {
             for what each one means and how it affects pay.
           </p>
           <p>
-            The small calendar icon next to a date sets a <strong>one-off schedule for just that date</strong> —
-            for the rare day that doesn't follow the employee's usual pattern (e.g. covering someone else's shift
-            just once), without changing anything about any other day. Leave every field blank to revert to their
-            usual schedule.
+            Each day is graded against the office's published schedule, with the posted hours shown under the date.
+            Posted days off start as Rest Day, and a scheduled weekend doesn't. With no schedule published, the
+            employee's usual hours apply.
           </p>
           <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
             For a night shift that starts one date and ends the next (e.g. 8pm–5am), click the link icon next to

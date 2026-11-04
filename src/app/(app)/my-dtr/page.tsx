@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { computePayroll, formatPeso } from "@/lib/payroll";
 import { displayCodeForDay } from "@/lib/attendance-codes";
 import { getHalfMonthRange, formatISODate, halfLabel, clampMonth, type Half } from "@/lib/period";
-import { formatTimeHHMM, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
+import { formatTimeHHMM, isScheduledRestDay, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
 import { reviewEmployeePunches } from "@/lib/biometric-review";
 import { fetchDateScheduleOverrides } from "@/lib/date-schedule";
 import { MyDtrFilters } from "./my-dtr-filters";
@@ -89,7 +89,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
   // a default the employee sees and can edit, never a silent overwrite of an
   // official record or an in-flight request.
   const biometricByIso = new Map(
-    reviewEmployeePunches(employee, punches.map((p) => p.timestamp)).map((d) => [d.iso, d]),
+    reviewEmployeePunches(employee, punches.map((p) => p.timestamp), dateOverrides).map((d) => [d.iso, d]),
   );
 
   const totals = computePayroll(
@@ -122,8 +122,8 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
     const biometricTimes = biometricDay?.classification.kind === "confident" ? biometricDay.classification : null;
 
     const hasRecord = !!day || !!request;
-    const isWeekend = date.getUTCDay() === 0 || date.getUTCDay() === 6;
-    const defaultOverride: ManualOverrideCode | "" = hasRecord || biometricTimes ? "" : isWeekend ? "REST_DAY" : "";
+    const restDay = isScheduledRestDay(date.getUTCDay(), dateOverrides.get(iso));
+    const defaultOverride: ManualOverrideCode | "" = hasRecord || biometricTimes ? "" : restDay ? "REST_DAY" : "";
 
     function pickTime(fromRecord: Date | null | undefined, fromBiometric: Date | null | undefined): string {
       if (isManualOverride) return "";

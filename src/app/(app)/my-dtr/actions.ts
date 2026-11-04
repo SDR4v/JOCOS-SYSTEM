@@ -4,21 +4,11 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { parseISODate, formatFullDate } from "@/lib/period";
-import {
-  MANUAL_OVERRIDE_CODES,
-  combineDateAndTime,
-  resolveSchedule,
-  type DateScheduleOverrideFields,
-} from "@/lib/dtr-time";
+import { parseISODate } from "@/lib/period";
+import { MANUAL_OVERRIDE_CODES, combineDateAndTime, resolveSchedule } from "@/lib/dtr-time";
 import { logAudit } from "@/lib/audit";
 import { notifyAdmins } from "@/lib/notify";
-import {
-  fetchDateScheduleOverridesForDates,
-  setDateScheduleOverride,
-  parseDateScheduleInput,
-  type DateScheduleInput,
-} from "@/lib/date-schedule";
+import { fetchDateScheduleOverridesForDates } from "@/lib/date-schedule";
 
 const timeField = z.union([z.string().regex(/^\d{2}:\d{2}$/), z.literal("")]).optional();
 
@@ -98,36 +88,4 @@ export async function submitDtrEntries(rows: unknown): Promise<FormState> {
   // reach it.
   revalidatePath("/", "layout");
   return { error: null };
-}
-
-// Sets (or, given an all-blank input, clears) a one-off schedule for a
-// single calendar date, on the employee's own record — see
-// EmployeeDateSchedule and setEmployeeDateSchedule (the admin equivalent).
-export async function setMyDateSchedule(
-  dateIso: string,
-  input: DateScheduleInput,
-): Promise<{ error: string | null; value: DateScheduleOverrideFields | null }> {
-  const user = await requireUser();
-  if (!user.employeeId) {
-    return { error: "Your account isn't linked to an employee record.", value: null };
-  }
-
-  const parsed = parseDateScheduleInput(input);
-  if ("error" in parsed) return { error: parsed.error, value: null };
-
-  const date = parseISODate(dateIso);
-  const value = await setDateScheduleOverride(user.employeeId, date, parsed);
-
-  await logAudit({
-    actorId: user.id,
-    entityType: "EmployeeDateSchedule",
-    entityId: user.employeeId,
-    action: "UPDATE",
-    summary: value
-      ? `${user.name} set a one-off schedule for ${formatFullDate(date)}`
-      : `${user.name} reverted their schedule on ${formatFullDate(date)} to the default`,
-  });
-
-  revalidatePath("/my-dtr");
-  return { error: null, value };
 }

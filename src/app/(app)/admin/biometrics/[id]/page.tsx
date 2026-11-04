@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { reviewEmployeePunches, planEmployeeDays, type EmployeeDayPlan } from "@/lib/biometric-review";
 import { buildNameMatchIndex, suggestCandidates } from "@/lib/biometric-match";
+import { fetchDateScheduleOverridesForEmployees } from "@/lib/date-schedule";
 import { formatDisplayDate } from "@/lib/period";
 import { ProcessButton } from "../process-button";
 import { ApplyButton } from "./apply-button";
@@ -159,13 +160,22 @@ export default async function BiometricReviewPage({ params }: { params: Promise<
     else blockedByEmployee.set(d.employeeId, new Set([iso]));
   }
 
+  const overridesByEmployee =
+    punchRecords.length > 0
+      ? await fetchDateScheduleOverridesForEmployees(
+          [...matchedByEmployee.keys()],
+          punchRecords[0].timestamp,
+          punchRecords[punchRecords.length - 1].timestamp,
+        )
+      : new Map();
+
   type EmployeeRow = { employeeId: string; name: string; employeeNo: string; plans: EmployeeDayPlan[] };
   const employeeRows: EmployeeRow[] = [];
   let applyReady = 0;
   let flaggedTotal = 0;
   for (const [employeeId, { employee, punches }] of matchedByEmployee) {
     if (!employee) continue;
-    const days = reviewEmployeePunches(employee, punches);
+    const days = reviewEmployeePunches(employee, punches, overridesByEmployee.get(employeeId));
     const plans = planEmployeeDays(days, blockedByEmployee.get(employeeId) ?? new Set());
     applyReady += plans.filter((p) => p.planAction === "apply").length;
     flaggedTotal += plans.filter((p) => p.planAction === "flag").length;
@@ -323,7 +333,11 @@ export default async function BiometricReviewPage({ params }: { params: Promise<
                                     <TableCell>{formatDisplayDate(p.iso)}</TableCell>
                                     <TableCell>
                                       <Badge variant={c.reason === "too_many" ? "destructive" : "secondary"}>
-                                        {c.reason === "too_many" ? "Duplicate punches" : "Missing punch(es)"}
+                                        {c.reason === "overnight"
+                                          ? "Overnight shift — enter by hand"
+                                          : c.reason === "too_many"
+                                            ? "Duplicate punches"
+                                            : "Missing punch(es)"}
                                       </Badge>
                                     </TableCell>
                                     <TableCell>

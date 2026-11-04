@@ -8,6 +8,7 @@ import { logAudit } from "@/lib/audit";
 import { parseBiometricPdf } from "@/lib/biometric-parser";
 import { markDuplicates, buildNameMatchIndex, matchEmployeeByName } from "@/lib/biometric-match";
 import { reviewEmployeePunches, planEmployeeDays } from "@/lib/biometric-review";
+import { fetchDateScheduleOverridesForEmployees } from "@/lib/date-schedule";
 
 const MAX_FILE_BYTES = 20 * 1024 * 1024; // 20MB, matches next.config.ts's serverActions.bodySizeLimit
 
@@ -315,13 +316,22 @@ export async function submitConfidentDaysForReview(uploadId: string): Promise<Ap
     else blockedByEmployee.set(d.employeeId, new Set([iso]));
   }
 
+  const overridesByEmployee =
+    punchRecords.length > 0
+      ? await fetchDateScheduleOverridesForEmployees(
+          [...byEmployee.keys()],
+          punchRecords[0].timestamp,
+          punchRecords[punchRecords.length - 1].timestamp,
+        )
+      : new Map();
+
   let submitted = 0;
   let flaggedDays = 0;
   let skippedExisting = 0;
 
   for (const employee of employees) {
     const punches = byEmployee.get(employee.id)!;
-    const days = reviewEmployeePunches(employee, punches);
+    const days = reviewEmployeePunches(employee, punches, overridesByEmployee.get(employee.id));
     const plans = planEmployeeDays(days, blockedByEmployee.get(employee.id) ?? new Set());
 
     for (const day of plans) {

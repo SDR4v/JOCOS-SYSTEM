@@ -6,7 +6,8 @@
 import { prisma } from "@/lib/prisma";
 import { formatISODate, formatDisplayDate, datesBetween } from "@/lib/period";
 import { reviewEmployeePunches, type EmployeeDayReview } from "@/lib/biometric-review";
-import type { EmployeeScheduleFields } from "@/lib/dtr-time";
+import { fetchDateScheduleOverridesForEmployees } from "@/lib/date-schedule";
+import { isScheduledRestDay, type DateScheduleOverrideFields, type EmployeeScheduleFields } from "@/lib/dtr-time";
 
 export type IncompleteReason = "no_punch_data" | "incomplete_punches" | "unsaved_biometric_data";
 
@@ -34,19 +35,21 @@ export type UnmatchedName = {
 
 type MonitoringEmployee = EmployeeScheduleFields & { id: string; name: string; officeAssignment: string };
 
-// Which dates an employee is actually expected to have a DTR entry for.
+// Which dates an employee is actually expected to have a DTR entry for. A
+// posted schedule answers that for its dates, weekends included. Otherwise
 // resolveSchedule() always falls back to a schedule (it can't itself express
 // "not a work day"), so this can't be derived from it — instead this
 // mirrors the DTR grid's own weekend-default convention: Mon-Fri for
 // STANDARD/CUSTOM employees, and for PER_DAY employees only the weekdays
 // that have an explicit EmployeeDaySchedule row with a session configured.
-function isDueDate(employee: EmployeeScheduleFields, date: Date): boolean {
+function isDueDate(employee: EmployeeScheduleFields, date: Date, dateOverride?: DateScheduleOverrideFields): boolean {
   const dow = date.getUTCDay();
+  if (dateOverride) return !isScheduledRestDay(dow, dateOverride);
   if (employee.scheduleMode === "PER_DAY") {
     const day = employee.daySchedules?.find((d) => d.dayOfWeek === dow);
     return !!day && (day.session1Start != null || day.session2Start != null);
   }
-  return dow !== 0 && dow !== 6;
+  return !isScheduledRestDay(dow);
 }
 
 function classifyReason(review: EmployeeDayReview | undefined): IncompleteReason {
@@ -70,7 +73,7 @@ export async function getDtrMonitoringSummary(
   const rangeEnd = cappedRangeEnd(end);
   const punchRangeEnd = new Date(end.getTime() + 24 * 60 * 60 * 1000);
 
-  const [employees, attendanceDays, punches, unmatchedNames] = await Promise.all([
+  const [employees, attendanceDays, punches, unmatchedNames, overridesByEmployee] = await Promise.all([
     prisma.employee.findMany({
       where: { status: "ACTIVE" },
       orderBy: [{ officeAssignment: "asc" }, { name: "asc" }],
@@ -90,6 +93,7 @@ export async function getDtrMonitoringSummary(
       select: { employeeId: true, timestamp: true },
     }),
     getUnmatchedBiometricNames(start, punchRangeEnd),
+    fetchDateScheduleOverridesForEmployees(null, start, end),
   ]);
 
   const attendanceByKey = new Map<string, string>();
@@ -109,14 +113,15 @@ export async function getDtrMonitoringSummary(
 
   const result: EmployeeIncompleteDtr[] = [];
   for (const employee of employees as MonitoringEmployee[]) {
+    const dateOverrides = overridesByEmployee.get(employee.id);
     const reviewByIso = new Map(
-      reviewEmployeePunches(employee, punchesByEmployee.get(employee.id) ?? []).map((r) => [r.iso, r]),
+      reviewEmployeePunches(employee, punchesByEmployee.get(employee.id) ?? [], dateOverrides).map((r) => [r.iso, r]),
     );
 
     const days: IncompleteDay[] = [];
     for (const date of dueDates) {
-      if (!isDueDate(employee, date)) continue;
       const iso = formatISODate(date);
+      if (!isDueDate(employee, date, dateOverrides?.get(iso))) continue;
       const code = attendanceByKey.get(`${employee.id}:${iso}`);
       if (code && code !== "UNSET") continue;
       days.push({ iso, display: formatDisplayDate(iso), reason: classifyReason(reviewByIso.get(iso)) });

@@ -38,15 +38,23 @@ export default async function DtrPrintPage({
   });
   if (!employee) notFound();
 
-  const officeHoursLabel =
-    employee.scheduleMode === "PER_DAY"
-      ? "Varies by day"
-      : formatScheduleSummary(resolveSchedule(employee, 1)); // Monday — representative for a uniform CUSTOM/STANDARD schedule
-
   const { dates } = getMonthRange(year, month);
-  const days = await prisma.attendanceDay.findMany({
-    where: { employeeId, date: { gte: dates[0], lte: dates[dates.length - 1] } },
-  });
+  const [days, postedDays] = await Promise.all([
+    prisma.attendanceDay.findMany({
+      where: { employeeId, date: { gte: dates[0], lte: dates[dates.length - 1] } },
+    }),
+    prisma.employeeDateSchedule.count({
+      where: { employeeId, date: { gte: dates[0], lte: dates[dates.length - 1] } },
+    }),
+  ]);
+
+  const officeHoursLabel =
+    postedDays > 0
+      ? "As per posted schedule"
+      : employee.scheduleMode === "PER_DAY"
+        ? "Varies by day"
+        : formatScheduleSummary(resolveSchedule(employee, 1)); // Monday — representative for a uniform CUSTOM/STANDARD schedule
+
   const dayMap = new Map(days.map((d) => [formatISODate(d.date), d]));
 
   const relevantDays = half ? days.filter((d) => matchesHalf(d.date, half)) : days;

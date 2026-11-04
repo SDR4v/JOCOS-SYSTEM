@@ -4,7 +4,7 @@ import { Printer } from "lucide-react";
 import { requireAdmin } from "@/lib/session";
 import { prisma } from "@/lib/prisma";
 import { getHalfMonthRange, formatISODate, clampMonth, type Half } from "@/lib/period";
-import { formatTimeHHMM, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
+import { formatTimeHHMM, isScheduledRestDay, MANUAL_OVERRIDE_CODES, type ManualOverrideCode } from "@/lib/dtr-time";
 import { reviewEmployeePunches } from "@/lib/biometric-review";
 import { fetchDateScheduleOverrides } from "@/lib/date-schedule";
 import { Button } from "@/components/ui/button";
@@ -89,7 +89,7 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
   // this grid is exactly as deliberate an admin action as typing the times
   // in by hand would have been.
   const biometricByIso = new Map(
-    reviewEmployeePunches(selectedEmployee, punches.map((p) => p.timestamp)).map((d) => [d.iso, d]),
+    reviewEmployeePunches(selectedEmployee, punches.map((p) => p.timestamp), dateOverrides).map((d) => [d.iso, d]),
   );
 
   const rows: DtrRowValue[] = dates.map((date) => {
@@ -100,8 +100,8 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
     const biometricDay = !existing ? biometricByIso.get(iso) : undefined;
     const biometricTimes = biometricDay?.classification.kind === "confident" ? biometricDay.classification : null;
 
-    const isWeekend = date.getUTCDay() === 0 || date.getUTCDay() === 6;
-    const defaultOverride: ManualOverrideCode | "" = existing || biometricTimes ? "" : isWeekend ? "REST_DAY" : "";
+    const restDay = isScheduledRestDay(date.getUTCDay(), dateOverrides.get(iso));
+    const defaultOverride: ManualOverrideCode | "" = existing || biometricTimes ? "" : restDay ? "REST_DAY" : "";
     // A TA-covered punch was saved with a null time (see saveDtrPeriod) —
     // code TRIP_AUTHORIZATION plus a null field is what marks it as TA
     // rather than genuinely blank when reopening the page.

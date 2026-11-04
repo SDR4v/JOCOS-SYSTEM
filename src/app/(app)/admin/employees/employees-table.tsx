@@ -2,14 +2,14 @@
 
 import { useMemo, useState, useTransition } from "react";
 import { toast } from "sonner";
-import { Search, Trash2 } from "lucide-react";
+import { CalendarClock, Search, Trash2 } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { humanizeEnum } from "@/lib/utils";
 import { EditEmployeeDialog, CreateLoginDialog, ResetPasswordDialog } from "./employee-dialogs";
-import { toggleEmployeeStatus, removeEmployee } from "./actions";
+import { toggleEmployeeStatus, removeEmployee, toggleSchedulePoster } from "./actions";
 
 type EmployeeRow = {
   id: string;
@@ -19,6 +19,7 @@ type EmployeeRow = {
   positionTitle: string;
   salaryGrade: number;
   status: "ACTIVE" | "INACTIVE";
+  canPostSchedule: boolean;
   user: { id: string; username: string } | null;
 };
 
@@ -42,6 +43,21 @@ export function EmployeesTable({ employees }: { employees: EmployeeRow[] }) {
     startTransition(async () => {
       await toggleEmployeeStatus(id);
       toast.success("Employee status updated");
+    });
+  }
+
+  function handleTogglePoster(employee: EmployeeRow) {
+    startTransition(async () => {
+      const result = await toggleSchedulePoster(employee.id);
+      if (!result.error) {
+        toast.success(
+          employee.canPostSchedule
+            ? `${employee.name} can no longer post the office schedule`
+            : `${employee.name} can now post ${employee.officeAssignment}'s schedule`,
+        );
+      } else {
+        toast.error(result.error);
+      }
     });
   }
 
@@ -111,6 +127,24 @@ export function EmployeesTable({ employees }: { employees: EmployeeRow[] }) {
                 </TableCell>
                 <TableCell className="flex justify-end gap-2">
                   <EditEmployeeDialog employee={employee} />
+                  <Button
+                    type="button"
+                    variant={employee.canPostSchedule ? "secondary" : "outline"}
+                    size="sm"
+                    loading={pending}
+                    disabled={!employee.user}
+                    title={
+                      !employee.user
+                        ? "Create a login for this employee first"
+                        : employee.canPostSchedule
+                          ? "Posts this office's schedule. Click to stop."
+                          : "Let this employee post their office's monthly schedule"
+                    }
+                    onClick={() => handleTogglePoster(employee)}
+                  >
+                    <CalendarClock />
+                    {employee.canPostSchedule ? "Posts schedule" : "Let post schedule"}
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"

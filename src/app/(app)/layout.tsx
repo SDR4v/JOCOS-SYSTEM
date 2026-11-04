@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { Bell, LogOut } from "lucide-react";
+import { Bell, CalendarClock, LogOut } from "lucide-react";
 import {
   EmployeesIcon,
   SalaryGradesIcon,
@@ -41,11 +41,15 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
     currentHalf,
   );
 
-  const [pendingDtrRequests, incompleteDtrCount, employee] = await Promise.all([
+  const [pendingDtrRequests, incompleteDtrCount, schedulesToPublish, employee] = await Promise.all([
     isAdmin ? prisma.dtrEntryRequest.count({ where: { status: "PENDING" } }) : Promise.resolve(0),
     isAdmin ? countEmployeesWithIncompleteDtr(currentPeriodStart, currentPeriodEnd) : Promise.resolve(0),
+    isAdmin ? prisma.scheduleUpload.count({ where: { status: "SUBMITTED" } }) : Promise.resolve(0),
     !isAdmin && user.employeeId
-      ? prisma.employee.findUnique({ where: { id: user.employeeId }, select: { salaryGrade: true } })
+      ? prisma.employee.findUnique({
+          where: { id: user.employeeId },
+          select: { salaryGrade: true, canPostSchedule: true },
+        })
       : Promise.resolve(null),
   ]);
 
@@ -63,6 +67,7 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
           icon: <DtrIcon className="size-4" />,
           items: [
             { href: "/admin/dtr", icon: <DtrIcon className="size-4" />, label: "DTR" },
+            { href: "/schedules", icon: <CalendarClock className="size-4" />, label: "Schedules", badge: schedulesToPublish },
             { href: "/admin/dtr-requests", icon: <DtrRequestsIcon className="size-4" />, label: "DTR Requests", badge: pendingDtrRequests },
             { href: "/admin/monitoring", icon: <MonitoringIcon className="size-4" />, label: "Monitoring", badge: incompleteDtrCount },
             { href: "/admin/biometrics", icon: <BiometricsIcon className="size-4" />, label: "Biometrics" },
@@ -97,6 +102,9 @@ export default async function AppLayout({ children }: LayoutProps<"/">) {
       ]
     : [
         { href: "/my-dtr", icon: <DtrIcon className="size-4" />, label: "My DTR" },
+        ...(employee?.canPostSchedule
+          ? [{ href: "/schedules", icon: <CalendarClock className="size-4" />, label: "Office Schedule" }]
+          : []),
         { href: "/salary-grades", icon: <SalaryGradesIcon className="size-4" />, label: "Salary Grades" },
         { href: "/my-wellness-leave", icon: <WellnessLeaveIcon className="size-4" />, label: "Wellness Leave" },
         { href: "/biometrics", icon: <BiometricsIcon className="size-4" />, label: "Biometrics" },

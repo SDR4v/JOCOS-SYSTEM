@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/session";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
-import { parseISODate, formatISODate, formatFullDate } from "@/lib/period";
+import { parseISODate, formatISODate } from "@/lib/period";
 import {
   computeAttendanceFromTimes,
   detectNightShiftContinuation,
@@ -24,12 +24,7 @@ import {
 } from "@/lib/dtr-time";
 import type { AttendanceCode } from "@/generated/prisma/enums";
 import { logAudit } from "@/lib/audit";
-import {
-  fetchDateScheduleOverrides,
-  setDateScheduleOverride,
-  parseDateScheduleInput,
-  type DateScheduleInput,
-} from "@/lib/date-schedule";
+import { fetchDateScheduleOverrides } from "@/lib/date-schedule";
 
 const timeField = z.union([z.string().regex(/^\d{2}:\d{2}$/), z.literal("")]).optional();
 
@@ -325,40 +320,4 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
   // (app) layout — a page-level revalidatePath doesn't reach it on its own.
   revalidatePath("/", "layout");
   return { error: null };
-}
-
-// Sets (or, given an all-blank input, clears) a one-off schedule for a
-// single calendar date — see EmployeeDateSchedule. Doesn't itself re-grade
-// any already-saved AttendanceDay for that date; the admin still needs to
-// re-save the day (or the employee needs to resubmit it) for the new
-// schedule to actually change what's on file, same as any other schedule
-// change.
-export async function setEmployeeDateSchedule(
-  employeeId: string,
-  dateIso: string,
-  input: DateScheduleInput,
-): Promise<{ error: string | null; value: DateScheduleOverrideFields | null }> {
-  const admin = await requireAdmin();
-
-  const parsed = parseDateScheduleInput(input);
-  if ("error" in parsed) return { error: parsed.error, value: null };
-
-  const employee = await prisma.employee.findUnique({ where: { id: employeeId }, select: { name: true } });
-  if (!employee) return { error: "Employee not found", value: null };
-
-  const date = parseISODate(dateIso);
-  const value = await setDateScheduleOverride(employeeId, date, parsed);
-
-  await logAudit({
-    actorId: admin.id,
-    entityType: "EmployeeDateSchedule",
-    entityId: employeeId,
-    action: "UPDATE",
-    summary: value
-      ? `Set a one-off schedule for ${employee.name} on ${formatFullDate(date)}`
-      : `Reverted ${employee.name}'s schedule on ${formatFullDate(date)} to the default`,
-  });
-
-  revalidatePath("/admin/dtr");
-  return { error: null, value };
 }

@@ -75,6 +75,28 @@ export async function toggleEmployeeStatus(id: string) {
   revalidatePath("/admin/employees");
 }
 
+// Lets this employee's login post their office's monthly schedule, which HR
+// then publishes — see ScheduleUpload.
+export async function toggleSchedulePoster(id: string): Promise<FormState> {
+  const admin = await requireAdmin();
+  const employee = await prisma.employee.findUnique({ where: { id } });
+  if (!employee) return { error: "Employee not found" };
+
+  const canPostSchedule = !employee.canPostSchedule;
+  await prisma.employee.update({ where: { id }, data: { canPostSchedule } });
+  await logAudit({
+    actorId: admin.id,
+    entityType: "Employee",
+    entityId: employee.id,
+    action: "UPDATE",
+    summary: canPostSchedule
+      ? `Allowed ${employee.name} to post ${employee.officeAssignment}'s schedule`
+      : `Stopped ${employee.name} from posting ${employee.officeAssignment}'s schedule`,
+  });
+  revalidatePath("/admin/employees");
+  return { error: null };
+}
+
 // Soft delete — hides the employee from the roster without touching the
 // DTR/payroll/leave history other records still reference. Also forces
 // INACTIVE so they immediately drop out of payroll, holiday-sync, etc.,

@@ -171,13 +171,23 @@ export type DateScheduleOverrideFields = {
   session1End: number | null;
   session2Start: number | null;
   session2End: number | null;
+  isOff?: boolean;
 };
+
+// Whether a day with nothing entered should default to Rest Day. A posted
+// schedule decides this outright, so a scheduled Saturday isn't a rest day and
+// a posted day off midweek is. Without one, it's the usual weekend.
+export function isScheduledRestDay(dayOfWeek: number, dateOverride?: DateScheduleOverrideFields | null): boolean {
+  if (dateOverride) return !!dateOverride.isOff;
+  return dayOfWeek === 0 || dayOfWeek === 6;
+}
 
 // Resolves an employee's schedule for a specific day of week. Required for
 // PER_DAY mode (Monday can differ from Tuesday); ignored for STANDARD/CUSTOM.
-// A dateOverride (a one-off EmployeeDateSchedule for this exact calendar
-// date, e.g. covering someone else's shift just once) takes priority over
-// all of that — the whole point is that it doesn't follow the usual pattern.
+// A dateOverride (this exact date in the office's published schedule — see
+// EmployeeDateSchedule) takes priority over all of that. A posted day off has
+// no sessions, so it falls through to the default: that's what someone who
+// worked anyway gets graded against.
 export function resolveSchedule(
   employee: EmployeeScheduleFields,
   dayOfWeek: number,
@@ -226,6 +236,20 @@ export function formatScheduleSummary(schedule: ResolvedSchedule): string {
   const lone = loneSession(schedule)!;
   const missing = lone.slot === "AM" ? "PM" : "AM";
   return `${minutesToHHMM(lone.start)}–${minutesToHHMM(lone.end)} (single continuous session, no ${missing})`;
+}
+
+// One posted day's hours, short enough to sit under a date in the DTR grid.
+export function formatPostedDay(override: DateScheduleOverrideFields): string {
+  if (override.isOff) return "Day off";
+  const time = (minutes: number) => {
+    const hour = Math.floor(minutes / 60);
+    return `${hour % 12 === 0 ? 12 : hour % 12}:${String(minutes % 60).padStart(2, "0")} ${hour < 12 ? "AM" : "PM"}`;
+  };
+  const range = (start: number | null, end: number | null) =>
+    start !== null && end !== null ? `${time(start)}–${time(end)}` : null;
+  return [range(override.session1Start, override.session1End), range(override.session2Start, override.session2End)]
+    .filter(Boolean)
+    .join(", ");
 }
 
 export function formatDurationHM(totalMinutes: number): string {
