@@ -4,7 +4,9 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireUser } from "@/lib/session";
-import { datesBetween, parseISODate, formatFullDate } from "@/lib/period";
+import { datesBetween, parseISODate, formatFullDate, formatISODate } from "@/lib/period";
+import { leaveDayCredit } from "@/lib/dtr-time";
+import { fetchDateScheduleOverridesForDates } from "@/lib/date-schedule";
 import { MAX_CONSECUTIVE_DAYS, getSemester, canPullOutWellnessLeave } from "@/lib/wellness-leave";
 import { logAudit } from "@/lib/audit";
 import { notifyAdmins } from "@/lib/notify";
@@ -69,6 +71,8 @@ export async function createMyWellnessLeaveRequest(_prev: FormState, formData: F
     return { error: `Only ${remaining} Wellness Leave day(s) remaining this semester` };
   }
 
+  const dateOverrides = await fetchDateScheduleOverridesForDates(employeeId, dates);
+
   const request = await prisma.$transaction(async (tx) => {
     const created = await tx.wellnessLeaveRequest.create({
       data: {
@@ -85,11 +89,12 @@ export async function createMyWellnessLeaveRequest(_prev: FormState, formData: F
       data: { used: { increment: dates.length } },
     });
     for (const date of dates) {
+      const dayCredit = leaveDayCredit(dateOverrides.get(formatISODate(date)));
       await tx.attendanceDay.upsert({
         where: { employeeId_date: { employeeId, date } },
         update: {
           code: "WELLNESS_LEAVE",
-          dayCredit: 1,
+          dayCredit,
           lateMinutes: 0,
           source: "WELLNESS_LEAVE",
           editedById: user.id,
@@ -99,7 +104,7 @@ export async function createMyWellnessLeaveRequest(_prev: FormState, formData: F
           employeeId,
           date,
           code: "WELLNESS_LEAVE",
-          dayCredit: 1,
+          dayCredit,
           source: "WELLNESS_LEAVE",
           editedById: user.id,
         },

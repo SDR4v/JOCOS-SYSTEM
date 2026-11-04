@@ -179,7 +179,7 @@ export default async function MyDtrPage({ searchParams }: PageProps<"/my-dtr">) 
           </CardTitle>
         </CardHeader>
         <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <Stat label="Days Rendered" value={totals.totalDaysRendered.toFixed(1)} />
+          <Stat label="Days Rendered" value={String(totals.totalDaysRendered)} />
           <Stat label="Gross Amount" value={formatPeso(totals.grossAmount)} />
           <Stat label="Deduction" value={formatPeso(totals.deduction)} />
           <Stat label="Net Amount" value={formatPeso(totals.netAmount)} highlight />

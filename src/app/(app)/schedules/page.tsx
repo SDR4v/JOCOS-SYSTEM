@@ -5,10 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { MONTH_NAMES } from "@/lib/period";
+import { MONTH_NAMES, formatISODate, parseISODate } from "@/lib/period";
 import { requireSchedulePoster } from "@/lib/schedule-access";
 import { STATUS_LABEL } from "@/lib/schedule-import/review";
 import { UploadScheduleForm } from "./upload-form";
+import { CompressedModeCard, type OfficeExemption } from "./compressed-mode-card";
 
 export const maxDuration = 60;
 
@@ -18,6 +19,57 @@ const STATUS_VARIANT = {
   PUBLISHED: "default",
   SUPERSEDED: "outline",
 } as const;
+
+async function loadCompressedMode() {
+  const today = new Date().toISOString().slice(0, 10);
+  const todayDate = parseISODate(today);
+
+  const [period, employees] = await Promise.all([
+    prisma.compressedWorkPeriod.findFirst({
+      where: { OR: [{ endDate: null }, { endDate: { gte: todayDate } }] },
+      orderBy: { startDate: "desc" },
+    }),
+    prisma.employee.findMany({
+      where: { status: "ACTIVE", deletedAt: null },
+      select: { officeAssignment: true, compressedExempt: true },
+    }),
+  ]);
+
+  const byOffice = new Map<string, OfficeExemption>();
+  for (const e of employees) {
+    const office = byOffice.get(e.officeAssignment) ?? { office: e.officeAssignment, total: 0, exempt: 0 };
+    byOffice.set(e.officeAssignment, office);
+    office.total++;
+    if (e.compressedExempt) office.exempt++;
+  }
+
+  // Saved under the old rules, inside the period: they keep their grade until re-saved.
+  const olderDays = period
+    ? await prisma.attendanceDay.findMany({
+        where: {
+          date: { gte: period.startDate, ...(period.endDate ? { lte: period.endDate } : {}) },
+          editedAt: { lt: period.createdAt },
+          code: { in: ["PRESENT", "LATE", "UNDERTIME_HALF", "TARDY_HALF"] },
+          employee: { compressedExempt: false, dateSchedules: { none: { date: { gte: period.startDate } } } },
+        },
+        orderBy: [{ date: "asc" }],
+        take: 300,
+        select: { employeeId: true, date: true, employee: { select: { name: true } } },
+      })
+    : [];
+
+  return {
+    startIso: period ? formatISODate(period.startDate) : null,
+    endIso: period?.endDate ? formatISODate(period.endDate) : null,
+    today,
+    offices: [...byOffice.values()].sort((a, b) => a.office.localeCompare(b.office)),
+    olderSavedDays: olderDays.map((d) => ({
+      employeeId: d.employeeId,
+      employeeName: d.employee.name,
+      iso: formatISODate(d.date),
+    })),
+  };
+}
 
 export default async function SchedulesPage() {
   const access = await requireSchedulePoster();
@@ -60,6 +112,8 @@ export default async function SchedulesPage() {
   );
   const notPosted = offices.filter((office) => !postedThisMonth.has(office));
 
+  const compressed = access.isAdmin ? await loadCompressedMode() : null;
+
   return (
     <div className="space-y-4">
       <div>
@@ -84,6 +138,8 @@ export default async function SchedulesPage() {
           />
         </CardContent>
       </Card>
+
+      {compressed && <CompressedModeCard {...compressed} />}
 
       {access.isAdmin && notPosted.length > 0 && (
         <details className="rounded-lg border bg-card px-4 py-3 text-sm shadow-sm">

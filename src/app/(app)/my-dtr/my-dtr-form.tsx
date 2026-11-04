@@ -246,7 +246,9 @@ export function MyDtrForm({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/60 px-3 py-2">
         <p className="text-sm text-muted-foreground">
-          {rows.some((row) => row.dateOverride)
+          {rows.some((row) => row.dateOverride?.compressed)
+            ? "Compressed Mode: Monday to Thursday, start between 7:00 and 8:00 AM, 10 hours of work plus lunch."
+            : rows.some((row) => row.dateOverride)
             ? "Following your office's posted schedule — each day's hours are shown under its date."
             : employeeSchedule.scheduleMode === "PER_DAY"
               ? "Your schedule varies by day of week — hover a row's date for that day's hours."

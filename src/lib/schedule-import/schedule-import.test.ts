@@ -10,6 +10,14 @@ import { extractGrids, buildTemplateWorkbook, UnreadableFileError } from "@/lib/
 import { detectSchedule } from "@/lib/schedule-import/detect";
 import { parseShiftText, type Shift } from "@/lib/schedule-import/shift-text";
 import { classifyDayPunches } from "@/lib/biometric-match";
+import {
+  COMPRESSED_HOURS,
+  computeAttendanceFromTimes,
+  leaveDayCredit,
+  taDepartureMinutes,
+  type ResolvedSchedule,
+} from "@/lib/dtr-time";
+import { computePayroll } from "@/lib/payroll";
 import { BLANK_TOKEN, type Grid, type ScheduleDocument } from "@/lib/schedule-import/types";
 
 const OFFICE = "CITY HEALTH OFFICE";
@@ -409,6 +417,92 @@ test("the downloadable template reads back correctly once filled in", async () =
   assert.deepEqual(shiftOn(doc, "juan", "2026-11-02"), EIGHT_TO_FIVE);
   assert.deepEqual(shiftOn(doc, "juan", "2026-11-03"), hours(1320, 360));
   assert.ok(!doc.warnings.some((w) => w.includes("weekday labels")), doc.warnings.join("; "));
+});
+
+// ── Compressed work week ─────────────────────────────────────────
+
+const flexDay: ResolvedSchedule = { session1: { start: 420, end: 720 }, session2: { start: 780, end: 1080 } };
+const at = (h: number, m = 0) => new Date(Date.UTC(2026, 10, 5, h, m));
+const worked = (inH: number, inM: number, outH: number, outM: number) => ({
+  amArrival: at(inH, inM),
+  amDeparture: at(12),
+  pmArrival: at(13),
+  pmDeparture: at(outH, outM),
+});
+
+test("compressed: any start from 7 to 8 is on time if they finish 11 hours later", () => {
+  for (const [inH, inM, outH, outM] of [[7, 0, 18, 0], [7, 30, 18, 30], [8, 0, 19, 0], [6, 45, 18, 0]]) {
+    assert.deepEqual(
+      computeAttendanceFromTimes(worked(inH, inM, outH, outM), flexDay),
+      { code: "PRESENT", dayCredit: 1.5, lateMinutes: 0 },
+      `${inH}:${inM}-${outH}:${outM}`,
+    );
+  }
+});
+
+test("compressed: a posted 8-7 is the same flexible day as 7-6", () => {
+  const eightToSeven: ResolvedSchedule = { session1: { start: 480, end: 720 }, session2: { start: 780, end: 1140 } };
+  assert.deepEqual(computeAttendanceFromTimes(worked(7, 15, 18, 15), eightToSeven), {
+    code: "PRESENT",
+    dayCredit: 1.5,
+    lateMinutes: 0,
+  });
+});
+
+test("compressed: leaving before their ten hours is undertime", () => {
+  assert.deepEqual(computeAttendanceFromTimes(worked(8, 0, 18, 0), flexDay), { code: "LATE", dayCredit: 1.5, lateMinutes: 60 });
+  assert.deepEqual(computeAttendanceFromTimes(worked(7, 30, 18, 0), flexDay), { code: "LATE", dayCredit: 1.5, lateMinutes: 30 });
+});
+
+test("compressed: past 8:00 is late, under the usual grace rule", () => {
+  assert.equal(computeAttendanceFromTimes(worked(8, 10, 19, 0), flexDay).lateMinutes, 0);
+  assert.equal(computeAttendanceFromTimes(worked(8, 20, 19, 0), flexDay).lateMinutes, 20);
+});
+
+test("compressed: half days and absences", () => {
+  const am = { amArrival: at(7), amDeparture: at(12), pmArrival: null, pmDeparture: null };
+  const pm = { amArrival: null, amDeparture: null, pmArrival: at(13), pmDeparture: at(18) };
+  assert.equal(computeAttendanceFromTimes(am, flexDay).dayCredit, 0.75);
+  assert.equal(computeAttendanceFromTimes(pm, flexDay).dayCredit, 0.75);
+  const none = { amArrival: null, amDeparture: null, pmArrival: null, pmDeparture: null };
+  assert.equal(computeAttendanceFromTimes(none, flexDay).dayCredit, 0);
+});
+
+test("compressed: a Trip Authorization for the departure doesn't count as leaving early", () => {
+  const ta = worked(8, 0, 19, 0);
+  ta.pmDeparture = at(Math.floor(taDepartureMinutes(flexDay)! / 60));
+  assert.equal(computeAttendanceFromTimes(ta, flexDay).lateMinutes, 0);
+});
+
+test("compressed: other schedules are untouched", () => {
+  const standard: ResolvedSchedule = { session1: { start: 480, end: 720 }, session2: { start: 780, end: 1020 } };
+  const regular = { amArrival: at(8), amDeparture: at(12), pmArrival: at(13), pmDeparture: at(17) };
+  assert.deepEqual(computeAttendanceFromTimes(regular, standard), { code: "PRESENT", dayCredit: 1, lateMinutes: 0 });
+  // Starting at 7 on 8-5 is no flexible day: they're still expected until 5.
+  assert.equal(computeAttendanceFromTimes({ ...regular, amArrival: at(7), pmDeparture: at(16) }, standard).lateMinutes, 60);
+  // A ten-hour straight night shift isn't a compressed day.
+  const night: ResolvedSchedule = { session1: null, session2: { start: 1200, end: 360 } };
+  const graded = computeAttendanceFromTimes(
+    { amArrival: null, amDeparture: null, pmArrival: at(20), pmDeparture: at(6) },
+    night,
+  );
+  assert.equal(graded.dayCredit, 1);
+  assert.equal(taDepartureMinutes(standard), 1020);
+});
+
+test("compressed: leave is worth the workday it replaces", () => {
+  assert.equal(leaveDayCredit(COMPRESSED_HOURS), 1.5);
+  const off = { session1Start: null, session1End: null, session2Start: null, session2End: null, isOff: true };
+  assert.equal(leaveDayCredit(off), 1);
+  assert.equal(leaveDayCredit({ session1Start: 480, session1End: 720, session2Start: 780, session2End: 1020 }), 1);
+  assert.equal(leaveDayCredit(null), 1);
+});
+
+test("compressed: payroll pays 1.5 days per day worked", () => {
+  const fourDayWeeks = Array.from({ length: 8 }, () => ({ dayCredit: 1.5, lateMinutes: 0 }));
+  const totals = computePayroll(fourDayWeeks, 16833);
+  assert.equal(totals.totalDaysRendered, 12);
+  assert.equal(totals.grossAmount, 9181.64);
 });
 
 // ── Safety ───────────────────────────────────────────────────────

@@ -165,6 +165,16 @@ export default async function AdminManualPage() {
             new file for the same office and month. Either way the old one stays in effect until you publish.
             That's also how to record a last-minute shift swap.
           </p>
+          <p>
+            <strong>Compressed Mode</strong>, also under Schedules, puts everyone not exempt on Monday to Thursday.
+            They start any time from 7:00 to 8:00 AM and work 10 hours plus lunch (in at 7:30, out by 6:30). Past
+            8:00 counts as late, under the usual grace rule. A full day counts as 1.5 days and a half day as 0.75,
+            and the per-minute deduction for lateness doesn't change. Exempt a whole office there, or one person on
+            the Employees page. A posted schedule takes priority over the mode, and a posted day of 10 working hours
+            (like 7-6 or 8-7) follows the same rules. Wellness Leave on a compressed workday is paid as 1.5 days and
+            still uses 1 day of the balance. Turning the mode on or off
+            doesn't change days already saved; ones inside the period are listed for re-saving.
+          </p>
           <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">
             Publishing never changes attendance that's already saved. If a saved day would grade differently under
             the new schedule, it's listed on the schedule's page: open it from there and save it again. Blank cells
@@ -225,7 +235,8 @@ export default async function AdminManualPage() {
             for what each one means and how it affects pay.
           </p>
           <p>
-            Each day is graded against the office's published schedule, with the posted hours shown under the date.
+            Wellness Leave days show as WL and can't be edited here; saving the period leaves them as they are. Each
+            day is graded against the office's published schedule, with the posted hours shown under the date.
             Posted days off start as Rest Day, and a scheduled weekend doesn't. With no schedule published, the
             employee's usual hours apply.
           </p>

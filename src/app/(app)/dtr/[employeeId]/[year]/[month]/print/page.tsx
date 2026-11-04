@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { getMonthRange, formatISODate, halfLabel, MONTH_NAMES, type Half } from "@/lib/period";
 import { formatTimeHHMM, formatScheduleSummary, resolveSchedule, MANUAL_OVERRIDE_CODES } from "@/lib/dtr-time";
 import { ATTENDANCE_CODE_MAP } from "@/lib/attendance-codes";
+import { fetchDateScheduleOverrides } from "@/lib/date-schedule";
 import { PrintButton } from "./print-button";
 import { DownloadPdfButton } from "@/components/download-pdf-button";
 
@@ -39,19 +40,20 @@ export default async function DtrPrintPage({
   if (!employee) notFound();
 
   const { dates } = getMonthRange(year, month);
-  const [days, postedDays] = await Promise.all([
+  const [days, dateOverrides] = await Promise.all([
     prisma.attendanceDay.findMany({
       where: { employeeId, date: { gte: dates[0], lte: dates[dates.length - 1] } },
     }),
-    prisma.employeeDateSchedule.count({
-      where: { employeeId, date: { gte: dates[0], lte: dates[dates.length - 1] } },
-    }),
+    fetchDateScheduleOverrides(employeeId, dates[0], dates[dates.length - 1]),
   ]);
+  const overrides = [...dateOverrides.values()];
 
   const officeHoursLabel =
-    postedDays > 0
+    overrides.some((o) => !o.compressed)
       ? "As per posted schedule"
-      : employee.scheduleMode === "PER_DAY"
+      : overrides.length > 0
+        ? "Compressed: Mon–Thu, 10 hours"
+        : employee.scheduleMode === "PER_DAY"
         ? "Varies by day"
         : formatScheduleSummary(resolveSchedule(employee, 1)); // Monday — representative for a uniform CUSTOM/STANDARD schedule
 

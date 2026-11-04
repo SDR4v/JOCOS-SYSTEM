@@ -126,6 +126,7 @@ export default async function DtrPage({ searchParams }: PageProps<"/admin/dtr">)
       pmArrivalIsTA: wasTA && !existing.pmArrival,
       pmDepartureIsTA: wasTA && !existing.pmDeparture,
       remarks: existing?.remarks ?? "",
+      leaveCredit: existing?.code === "WELLNESS_LEAVE" ? existing.dayCredit : null,
       dateOverride: dateOverrides.get(iso) ?? null,
       joinedWithNextDay: existing?.joinedWithNextDay ?? false,
     };

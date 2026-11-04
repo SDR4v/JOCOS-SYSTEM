@@ -12,6 +12,7 @@ import {
   combineDateAndTime,
   minutesToHHMM,
   resolveSchedule,
+  taDepartureMinutes,
   MANUAL_OVERRIDE_CODES,
   MANUAL_OVERRIDE_SET,
   ONE_DAY_MS,
@@ -216,7 +217,7 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
       amArrival: resolveTime(row.amArrival, hasAmBlock, amArrivalIsTA, schedule.session1?.start),
       amDeparture: resolveTime(row.amDeparture, hasAmBlock, amDepartureIsTA, schedule.session1?.end),
       pmArrival: resolveTime(row.pmArrival, hasPmBlock, pmArrivalIsTA, schedule.session2?.start),
-      pmDeparture: resolveTime(row.pmDeparture, hasPmBlock, pmDepartureIsTA, schedule.session2?.end),
+      pmDeparture: resolveTime(row.pmDeparture, hasPmBlock, pmDepartureIsTA, taDepartureMinutes(schedule)),
       overrideCode: row.overrideCode || null,
       amArrivalIsTA,
       amDepartureIsTA,
@@ -246,8 +247,17 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
   ];
   const grades = gradeSequence(sequence, employee, dateOverrides);
 
+  // Wellness Leave is written by its own flow and has no punch times, so
+  // grading it here would turn a paid leave day into an Absent. It changes only
+  // by being pulled out or deleted on the Wellness Leave pages.
+  const leaveDays = await prisma.attendanceDay.findMany({
+    where: { employeeId, code: "WELLNESS_LEAVE", date: { gte: firstDate, lte: lastDate } },
+    select: { date: true },
+  });
+  const leaveIsos = new Set(leaveDays.map((d) => formatISODate(d.date)));
+
   const now = new Date();
-  const ops = parsedRows.map((row) => {
+  const ops = parsedRows.filter((row) => !leaveIsos.has(row.iso)).map((row) => {
     const grade = grades.get(row.iso)!;
     const data = {
       code: grade.code,
@@ -292,6 +302,9 @@ export async function saveDtrPeriod(input: SaveDtrInput): Promise<FormState> {
     [sequence[sequence.length - 1], existingAfter],
   ] as const) {
     if (!existing) continue;
+    // Leave and Trip Authorization days have no punches to re-grade from; only
+    // their own flows and a direct save of that period can change them.
+    if (existing.code === "WELLNESS_LEAVE" || existing.code === "TRIP_AUTHORIZATION") continue;
     const grade = grades.get(fact.iso);
     if (!grade || !gradeChanged(grade, existing)) continue;
     ops.push(

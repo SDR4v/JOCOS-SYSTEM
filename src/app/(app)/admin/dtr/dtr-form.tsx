@@ -21,6 +21,7 @@ import {
   combineDateAndTime,
   minutesToHHMM,
   resolveSchedule,
+  taDepartureMinutes,
   undertimeMinutesForDisplay,
   formatDurationHM,
   formatPostedDay,
@@ -49,6 +50,9 @@ export type DtrRowValue = {
   pmDepartureIsTA: boolean;
   // A free-text note for the day — never shown on the printed DTR.
   remarks: string;
+  // The day's credit if it's Wellness Leave, which this grid shows but doesn't
+  // change — it's managed on the Wellness Leave pages. Null on any other day.
+  leaveCredit: number | null;
   // This date in the office's published schedule — see EmployeeDateSchedule.
   // Null means no schedule covers it, so the employee's usual hours apply.
   dateOverride: DateScheduleOverrideFields | null;
@@ -68,6 +72,10 @@ function timeOrTA(raw: string, isTA: boolean, date: string, taMinutes: number | 
 }
 
 function rowPreview(row: DtrRowValue, schedule: ResolvedSchedule) {
+  if (row.leaveCredit !== null) {
+    const meta = ATTENDANCE_CODE_MAP.WELLNESS_LEAVE;
+    return { code: meta.shortLabel, label: meta.label, dayCredit: row.leaveCredit, undertimeMinutes: 0 };
+  }
   if (row.overrideCode) {
     const meta = ATTENDANCE_CODE_MAP[row.overrideCode];
     return {
@@ -83,7 +91,7 @@ function rowPreview(row: DtrRowValue, schedule: ResolvedSchedule) {
       amArrival: timeOrTA(row.amArrival, row.amArrivalIsTA, row.date, schedule.session1?.start),
       amDeparture: timeOrTA(row.amDeparture, row.amDepartureIsTA, row.date, schedule.session1?.end),
       pmArrival: timeOrTA(row.pmArrival, row.pmArrivalIsTA, row.date, schedule.session2?.start),
-      pmDeparture: timeOrTA(row.pmDeparture, row.pmDepartureIsTA, row.date, schedule.session2?.end),
+      pmDeparture: timeOrTA(row.pmDeparture, row.pmDepartureIsTA, row.date, taDepartureMinutes(schedule)),
     },
     schedule,
   );
@@ -241,7 +249,7 @@ export function DtrForm({
   function fillStandardHours() {
     setRows((prev) => {
       const next = prev.map((row, i) => {
-        if (row.overrideCode) return row;
+        if (row.overrideCode || row.leaveCredit !== null) return row;
         const schedule = schedules[i];
         return {
           ...row,
@@ -290,7 +298,9 @@ export function DtrForm({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted/60 px-3 py-2">
         <p className="text-sm text-muted-foreground">
-          {rows.some((row) => row.dateOverride)
+          {rows.some((row) => row.dateOverride?.compressed)
+            ? "Compressed Mode: Monday to Thursday, start between 7:00 and 8:00 AM, 10 hours of work plus lunch."
+            : rows.some((row) => row.dateOverride)
             ? "Following the office's posted schedule — each day's hours are shown under its date."
             : employeeSchedule.scheduleMode === "PER_DAY"
               ? "Schedule varies by day of week — hover a row's date for that day's hours."
@@ -321,7 +331,7 @@ export function DtrForm({
               const schedule = schedules[i];
               const hasFirstSession = !!schedule.session1;
               const hasSecondSession = !!schedule.session2;
-              const timesDisabled = !!row.overrideCode;
+              const timesDisabled = !!row.overrideCode || row.leaveCredit !== null;
               const scheduleTitle = formatScheduleSummary(schedule);
               const continuedFromAbove = i > 0 ? rows[i - 1].joinedWithNextDay : continuedFromPreviousPeriod;
               const nextRow = rows[i + 1];
@@ -430,6 +440,7 @@ export function DtrForm({
                   </TableCell>
                   <TableCell>
                     <Select
+                      disabled={row.leaveCredit !== null}
                       value={row.overrideCode || "AUTO"}
                       onValueChange={(value) =>
                         updateRow(i, { overrideCode: value === "AUTO" ? "" : (value as ManualOverrideCode) })
@@ -463,7 +474,7 @@ export function DtrForm({
 
       <div className="flex items-center justify-between rounded-lg border bg-card px-4 py-3 shadow-sm">
         <p className="text-sm">
-          Total day credit: <span className="font-semibold">{totalCredit.toFixed(1)}</span>
+          Total day credit: <span className="font-semibold">{Number(totalCredit.toFixed(2))}</span>
           <span className="text-muted-foreground">
             {" "}
             &middot; Late/undertime: {totalUndertimeMinutes > 0 ? formatDurationHM(totalUndertimeMinutes) : "0h 0m"}

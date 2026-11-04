@@ -172,7 +172,70 @@ export type DateScheduleOverrideFields = {
   session2Start: number | null;
   session2End: number | null;
   isOff?: boolean;
+  // Came from Compressed Mode rather than a posted schedule. Never stored.
+  compressed?: boolean;
 };
+
+// ── Compressed work week ─────────────────────────────────────────
+// Ten working hours a day, four days a week. Any day with that shape counts,
+// whether it comes from Compressed Mode or an office's posted schedule.
+
+export const COMPRESSED_DAY_CREDIT = 1.5; // set by HR, 2026-11-04
+const COMPRESSED_WORK_MINUTES = 600;
+const FLEX_EARLIEST_START = 7 * 60;
+const FLEX_LATEST_START = 8 * 60;
+const FLEX_SPAN_MINUTES = 11 * 60; // ten hours of work plus the lunch hour
+
+export const COMPRESSED_HOURS: DateScheduleOverrideFields = {
+  session1Start: FLEX_EARLIEST_START,
+  session1End: 12 * 60,
+  session2Start: 13 * 60,
+  session2End: 18 * 60,
+};
+
+function isCompressedDay(schedule: ResolvedSchedule): boolean {
+  if (!schedule.session1 || !schedule.session2) return false; // a straight night shift isn't one
+  return scheduledDurationMinutes(schedule) === COMPRESSED_WORK_MINUTES;
+}
+
+// 7-6 and 8-7 are the same day with a different start: anyone on one may start
+// any time from 7:00 to 8:00 and finishes eleven hours after that.
+function isFlexStartDay(schedule: ResolvedSchedule): boolean {
+  const { session1, session2 } = schedule;
+  return (
+    !!session1 &&
+    !!session2 &&
+    session1.start >= FLEX_EARLIEST_START &&
+    session1.start <= FLEX_LATEST_START &&
+    session1.end === 720 &&
+    session2.start === 780 &&
+    session2.end === session1.start + FLEX_SPAN_MINUTES
+  );
+}
+
+// Grades a flexible day against the start they actually made. Past 8:00 they
+// are late as usual, and the finish stays at 7:00 PM, the latest it can be.
+function fitFlexStartToArrival(schedule: ResolvedSchedule, arrival: Date): ResolvedSchedule {
+  if (!isFlexStartDay(schedule)) return schedule;
+  const start = Math.min(Math.max(minutesOfDay(arrival), FLEX_EARLIEST_START), FLEX_LATEST_START);
+  return {
+    session1: { start, end: 720 },
+    session2: { start: 780, end: start + FLEX_SPAN_MINUTES },
+  };
+}
+
+// What a day of paid leave is worth: the same as the workday it replaces.
+export function leaveDayCredit(dateOverride?: DateScheduleOverrideFields | null): number {
+  const schedule = dateOverride && !dateOverride.isOff ? resolveSessions(dateOverride) : null;
+  return schedule && isCompressedDay(schedule) ? COMPRESSED_DAY_CREDIT : 1;
+}
+
+// The stand-in time for a departure covered by a Trip Authorization. On a
+// flexible day that's the latest possible finish, since the slip excuses the
+// punch whenever they started.
+export function taDepartureMinutes(schedule: ResolvedSchedule): number | undefined {
+  return isFlexStartDay(schedule) ? FLEX_LATEST_START + FLEX_SPAN_MINUTES : schedule.session2?.end;
+}
 
 // Whether a day with nothing entered should default to Rest Day. A posted
 // schedule decides this outright, so a scheduled Saturday isn't a rest day and
@@ -241,6 +304,8 @@ export function formatScheduleSummary(schedule: ResolvedSchedule): string {
 // One posted day's hours, short enough to sit under a date in the DTR grid.
 export function formatPostedDay(override: DateScheduleOverrideFields): string {
   if (override.isOff) return "Day off";
+  const resolved = resolveSessions(override);
+  if (resolved && isFlexStartDay(resolved)) return "Start 7:00–8:00 AM, 10 hours";
   const time = (minutes: number) => {
     const hour = Math.floor(minutes / 60);
     return `${hour % 12 === 0 ? 12 : hour % 12}:${String(minutes % 60).padStart(2, "0")} ${hour < 12 ? "AM" : "PM"}`;
@@ -334,11 +399,14 @@ export function computeAttendanceFromTimes(times: DtrTimes, schedule: ResolvedSc
     return { code: "ABSENT", dayCredit: 0, lateMinutes: 0 };
   }
 
+  const fullDayCredit = isCompressedDay(schedule) ? COMPRESSED_DAY_CREDIT : 1;
+
   if (session1Present && session2Present) {
-    const amStart = schedule.session1!.start;
-    const amEnd = schedule.session1!.end;
-    const pmStart = schedule.session2!.start;
-    const pmEnd = schedule.session2!.end;
+    const graded = fitFlexStartToArrival(schedule, times.amArrival!);
+    const amStart = graded.session1!.start;
+    const amEnd = graded.session1!.end;
+    const pmStart = graded.session2!.start;
+    const pmEnd = graded.session2!.end;
 
     // AM arrival: grace-forgiven, same rule as everywhere else.
     const rawAmLate = lateArrivalMinutesSameDay(minutesOfDay(times.amArrival!), amStart, amEnd);
@@ -361,11 +429,11 @@ export function computeAttendanceFromTimes(times: DtrTimes, schedule: ResolvedSc
 
     const lateMinutes = amLateArrival + amEarlyDeparture + pmLateArrival + pmEarlyDeparture;
     return lateMinutes > 0
-      ? { code: "LATE", dayCredit: 1, lateMinutes }
-      : { code: "PRESENT", dayCredit: 1, lateMinutes: 0 };
+      ? { code: "LATE", dayCredit: fullDayCredit, lateMinutes }
+      : { code: "PRESENT", dayCredit: fullDayCredit, lateMinutes: 0 };
   }
-  if (session1Present) return { code: "UNDERTIME_HALF", dayCredit: 0.5, lateMinutes: 0 };
-  if (session2Present) return { code: "TARDY_HALF", dayCredit: 0.5, lateMinutes: 0 };
+  if (session1Present) return { code: "UNDERTIME_HALF", dayCredit: fullDayCredit / 2, lateMinutes: 0 };
+  if (session2Present) return { code: "TARDY_HALF", dayCredit: fullDayCredit / 2, lateMinutes: 0 };
   return { code: "ABSENT", dayCredit: 0, lateMinutes: 0 };
 }
 

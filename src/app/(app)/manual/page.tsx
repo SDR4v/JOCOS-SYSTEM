@@ -100,7 +100,8 @@ export default async function EmployeeManualPage() {
           <p className="text-muted-foreground">
             Your schedule (which determines what counts as "on time") comes from the monthly schedule your office
             posts, so you don't enter it yourself. Each day's hours are shown under its date. If your office hasn't
-            posted one, Standard office hours apply (8–12, 1–5, Monday–Friday). If your hours are wrong, ask whoever
+            posted one, Standard office hours apply (8–12, 1–5, Monday–Friday), unless Compressed Mode is on: then
+            you work Monday to Thursday, start any time from 7:00 to 8:00 AM, and work 10 hours plus lunch. If your hours are wrong, ask whoever
             prepares your office's schedule to have it corrected. If HR has asked you to post it, you'll see{" "}
             <strong>Office Schedule</strong> in your menu: upload your office's usual file there, answer anything
             that's highlighted, and send it to HR to publish.

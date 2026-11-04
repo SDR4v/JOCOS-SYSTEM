@@ -251,7 +251,7 @@ export default async function PayrollPrintPage({
                       );
                     })}
                     <td className="border border-black px-1 py-0.5 text-center">
-                      {totals.totalDaysRendered.toFixed(1)}
+                      {totals.totalDaysRendered.toFixed(2)}
                     </td>
                     <td className="border border-black px-1 py-0.5 text-right">
                       {formatPeso(totals.grossAmount, false)}

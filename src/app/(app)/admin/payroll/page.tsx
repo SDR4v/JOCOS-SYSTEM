@@ -137,7 +137,7 @@ export default async function PayrollPage({ searchParams }: PageProps<"/admin/pa
                         </Badge>
                       )}
                     </TableCell>
-                    <TableCell className="text-right">{totals.totalDaysRendered.toFixed(1)}</TableCell>
+                    <TableCell className="text-right">{totals.totalDaysRendered.toFixed(2)}</TableCell>
                     <TableCell className="text-right">{formatPeso(totals.grossAmount)}</TableCell>
                     <TableCell className="text-right">{formatPeso(totals.deduction)}</TableCell>
                     <TableCell className="text-right font-medium">{formatPeso(totals.netAmount)}</TableCell>
@@ -156,7 +156,7 @@ export default async function PayrollPage({ searchParams }: PageProps<"/admin/pa
               <TableRow className="hover:bg-transparent">
                 <TableCell className="font-semibold">Grand Total</TableCell>
                 <TableCell />
-                <TableCell className="text-right font-semibold">{grandTotal.totalDaysRendered.toFixed(1)}</TableCell>
+                <TableCell className="text-right font-semibold">{grandTotal.totalDaysRendered.toFixed(2)}</TableCell>
                 <TableCell className="text-right font-semibold">{formatPeso(grandTotal.grossAmount)}</TableCell>
                 <TableCell className="text-right font-semibold">{formatPeso(grandTotal.deduction)}</TableCell>
                 <TableCell className="text-right font-semibold text-primary">{formatPeso(grandTotal.netAmount)}</TableCell>

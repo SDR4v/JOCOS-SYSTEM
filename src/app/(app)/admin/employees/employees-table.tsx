@@ -10,6 +10,7 @@ import { Input } from "@/components/ui/input";
 import { humanizeEnum } from "@/lib/utils";
 import { EditEmployeeDialog, CreateLoginDialog, ResetPasswordDialog } from "./employee-dialogs";
 import { toggleEmployeeStatus, removeEmployee, toggleSchedulePoster } from "./actions";
+import { toggleEmployeeCompressedExempt } from "../../schedules/compressed-actions";
 
 type EmployeeRow = {
   id: string;
@@ -20,6 +21,7 @@ type EmployeeRow = {
   salaryGrade: number;
   status: "ACTIVE" | "INACTIVE";
   canPostSchedule: boolean;
+  compressedExempt: boolean;
   user: { id: string; username: string } | null;
 };
 
@@ -54,6 +56,21 @@ export function EmployeesTable({ employees }: { employees: EmployeeRow[] }) {
           employee.canPostSchedule
             ? `${employee.name} can no longer post the office schedule`
             : `${employee.name} can now post ${employee.officeAssignment}'s schedule`,
+        );
+      } else {
+        toast.error(result.error);
+      }
+    });
+  }
+
+  function handleToggleCompressed(employee: EmployeeRow) {
+    startTransition(async () => {
+      const result = await toggleEmployeeCompressedExempt(employee.id);
+      if (!result.error) {
+        toast.success(
+          employee.compressedExempt
+            ? `${employee.name} is under Compressed Mode`
+            : `${employee.name} is exempt from Compressed Mode`,
         );
       } else {
         toast.error(result.error);
@@ -144,6 +161,20 @@ export function EmployeesTable({ employees }: { employees: EmployeeRow[] }) {
                   >
                     <CalendarClock />
                     {employee.canPostSchedule ? "Posts schedule" : "Let post schedule"}
+                  </Button>
+                  <Button
+                    type="button"
+                    variant={employee.compressedExempt ? "secondary" : "outline"}
+                    size="sm"
+                    loading={pending}
+                    title={
+                      employee.compressedExempt
+                        ? "Stays on normal hours during Compressed Mode. Click to include."
+                        : "Keep this employee on normal hours during Compressed Mode"
+                    }
+                    onClick={() => handleToggleCompressed(employee)}
+                  >
+                    {employee.compressedExempt ? "Compressed: exempt" : "Exempt from compressed"}
                   </Button>
                   <Button
                     type="button"

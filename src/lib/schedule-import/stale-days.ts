@@ -49,7 +49,7 @@ export async function findStaleSavedDays(document: ScheduleDocument, year: numbe
       session2End: shift.session2?.end ?? null,
     });
     const graded = computeAttendanceFromTimes(day, schedule);
-    if (graded.code !== day.code || graded.lateMinutes !== day.lateMinutes) {
+    if (graded.code !== day.code || graded.lateMinutes !== day.lateMinutes || graded.dayCredit !== day.dayCredit) {
       stale.push({ employeeId: employee.id, employeeName: employee.name, iso, reason: "Different hours now" });
     }
   }

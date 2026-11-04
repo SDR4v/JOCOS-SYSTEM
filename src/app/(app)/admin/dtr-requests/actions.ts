@@ -15,6 +15,7 @@ import {
   type Grade,
   type ManualOverrideCode,
 } from "@/lib/dtr-time";
+import { fetchDateScheduleOverridesForEmployees } from "@/lib/date-schedule";
 import { logAudit } from "@/lib/audit";
 import { notifyUser } from "@/lib/notify";
 import { formatFullDate, formatISODate } from "@/lib/period";
@@ -75,19 +76,21 @@ export async function approveDtrEntryRequests(ids: string[]): Promise<FormState>
     : [];
   const existingByKey = new Map(existingNeighbors.map((d) => [dayKey(d.employeeId, d.date), d]));
 
-  // One-off per-date schedule overrides (see EmployeeDateSchedule) for every
-  // date resolveSchedule gets called with below — the request's own date
-  // plus both neighbors, since a night-shift pairing check resolves those
-  // too.
-  const scheduleDateKeys = requests.flatMap((r) => [
-    { employeeId: r.employeeId, date: r.date },
-    { employeeId: r.employeeId, date: new Date(r.date.getTime() - ONE_DAY_MS) },
-    { employeeId: r.employeeId, date: new Date(r.date.getTime() + ONE_DAY_MS) },
-  ]);
-  const dateOverrideRows = await prisma.employeeDateSchedule.findMany({
-    where: { OR: scheduleDateKeys.map((k) => ({ employeeId: k.employeeId, date: k.date })) },
-  });
-  const dateOverrideByKey = new Map(dateOverrideRows.map((r) => [dayKey(r.employeeId, r.date), r]));
+  // The posted or Compressed Mode hours for every date resolveSchedule gets
+  // called with below — the request's own date plus both neighbors, since a
+  // night-shift pairing check resolves those too.
+  const requestTimes = requests.map((r) => r.date.getTime());
+  const overridesByEmployee = await fetchDateScheduleOverridesForEmployees(
+    employees.map((e) => e.id),
+    new Date(Math.min(...requestTimes) - ONE_DAY_MS),
+    new Date(Math.max(...requestTimes) + ONE_DAY_MS),
+  );
+  const dateOverrideByKey = {
+    get: (key: string) => {
+      const [employeeId, iso] = key.split("|");
+      return overridesByEmployee.get(employeeId)?.get(iso);
+    },
+  };
 
   function factFor(employeeId: string, date: Date): DayFact {
     const key = dayKey(employeeId, date);

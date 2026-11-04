@@ -42,6 +42,7 @@ model User {
   avatar               UserAvatar?
   uploadedSchedules    ScheduleUpload[]       @relation("ScheduleUploader")
   publishedSchedules   ScheduleUpload[]       @relation("SchedulePublisher")
+  startedCompressedPeriods CompressedWorkPeriod[] @relation("CompressedPeriodStarter")
 }
 
 // Kept in its own table (like BiometricUpload) rather than columns on User —
@@ -103,6 +104,8 @@ model Employee {
   // (officeAssignment). What they post still waits for HR to publish it — they
   // appear in the schedule themselves, so it can't take effect on their word.
   canPostSchedule Boolean @default(false)
+  // Stays on normal hours while Compressed Mode is on — see CompressedWorkPeriod.
+  compressedExempt Boolean @default(false)
 
   user                  User?
   attendanceDays        AttendanceDay[]
@@ -162,6 +165,22 @@ model EmployeeDateSchedule {
   @@unique([employeeId, date])
   @@index([date])
   @@index([scheduleUploadId])
+}
+
+// A stretch of dates when the compressed work week applies to everyone not
+// exempt and not on a posted schedule for that date: Monday to Thursday, start
+// between 7:00 and 8:00, ten hours of work plus lunch. Kept as dated periods
+// rather than one on/off switch, so turning it off never changes how an
+// earlier period reads. endDate is the last compressed day; null means ongoing.
+model CompressedWorkPeriod {
+  id          String    @id @default(cuid())
+  startDate   DateTime
+  endDate     DateTime?
+  startedById String
+  startedBy   User      @relation("CompressedPeriodStarter", fields: [startedById], references: [id])
+  createdAt   DateTime  @default(now())
+
+  @@index([startDate])
 }
 
 // One office's schedule file for one month, in whatever template that office
