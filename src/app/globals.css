@@ -7,9 +7,9 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
+  --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-geist-sans);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -134,6 +134,11 @@
   }
   html {
     @apply font-sans;
+    /* Every text size and spacing utility in this app is rem-based
+       (Tailwind v4 default), so bumping the root size here scales text,
+       padding, gaps, and component heights together, app-wide, instead of
+       ending up with bigger text but the same cramped spacing around it. */
+    font-size: 18px;
   }
 
   /* Drop the native clock-picker icon on time inputs — it's an extra click
