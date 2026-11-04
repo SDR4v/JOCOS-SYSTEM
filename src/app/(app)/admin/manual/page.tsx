@@ -172,7 +172,7 @@ export default async function AdminManualPage() {
             and the per-minute deduction for lateness doesn't change. Exempt a whole office there, or one person on
             the Employees page. A posted schedule takes priority over the mode, and a posted day of 10 working hours
             (like 7-6 or 8-7) follows the same rules. Wellness Leave on a compressed workday is paid as 1.5 days and
-            still uses 1 day of the balance. Turning the mode on or off
+            still uses 1 day of the balance; it can't be filed on a posted or compressed day off. Turning the mode on or off
             doesn't change days already saved; ones inside the period are listed for re-saving.
           </p>
           <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2">

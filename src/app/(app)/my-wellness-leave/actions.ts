@@ -59,6 +59,14 @@ export async function createMyWellnessLeaveRequest(_prev: FormState, formData: F
   const year = start.getUTCFullYear();
   const employeeId = user.employeeId;
 
+  // A posted or Compressed Mode day off has no work to take leave from, and
+  // filing it would pay a day they were never scheduled for.
+  const dateOverrides = await fetchDateScheduleOverridesForDates(employeeId, dates);
+  const dayOff = dates.find((date) => dateOverrides.get(formatISODate(date))?.isOff);
+  if (dayOff) {
+    return { error: `${formatFullDate(dayOff)} is your day off, so it can't be filed as leave. Choose only days you work.` };
+  }
+
   const balance = await prisma.wellnessLeaveBalance.findUnique({
     where: { employeeId_year_semester: { employeeId, year, semester } },
   });
@@ -70,8 +78,6 @@ export async function createMyWellnessLeaveRequest(_prev: FormState, formData: F
   if (dates.length > remaining) {
     return { error: `Only ${remaining} Wellness Leave day(s) remaining this semester` };
   }
-
-  const dateOverrides = await fetchDateScheduleOverridesForDates(employeeId, dates);
 
   const request = await prisma.$transaction(async (tx) => {
     const created = await tx.wellnessLeaveRequest.create({
